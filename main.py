@@ -1,26 +1,25 @@
 import op_parser
 
-
 src = """
-    func mamajo() {
-        print("asdasdasdasd");
+    func mamajo(asd) {
+        print(asd);
     }
     func toot() {
-        print("taki is cool");
+        print("holla");
     }    
-    
-    toot();
-    mamajo();
+    mamajo("Hello its meeeeeee");
+    mamajo(toot());
 """
 
 parser =  op_parser.Parser()
 parser.parse(src)
+parser.print_tree()
 
 transpiler = op_parser.Transpiler()
 
 
-
 src = transpiler.transpile(parser.nodes)
+print(src)
 with open("output.py","w") as f:
     f.write(src)
 

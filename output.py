@@ -1,6 +1,6 @@
-def mamajo():
-	print("asdasdasdasd")
+def mamajo(asd):
+	print(asd)
 def toot():
-	print("taki is cool")
-toot()
-mamajo()
+	print("holla")
+mamajo("Hello its meeeeeee")
+mamajo(toot())

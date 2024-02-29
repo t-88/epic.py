@@ -53,7 +53,7 @@ class Tokenizer:
         return tokens   
     
 
-Node = enum.Enum("Node",["FuncDec","FuncCall","String","Number"])
+Node = enum.Enum("Node",["FuncDec","FuncCall","FuncInnerCall","Variable","String","Number"])
 Widget = enum.Enum("Widget",["button"])
 widget_list = [e.name for e in Widget]
 component_list = ["pos","size","color"]
@@ -85,13 +85,21 @@ class Parser(BaseParser):
         self.idx = 0
         self.lookup = lookup
         while self.idx < len(self.tokens):
-            self.nodes.append(self.parse_experssion())
+            self.nodes.append(self.parse_statement())
         
-    def parse_experssion(self):
+    def parse_statement(self):
         if self.cur_token()[0] == Token.FunctionDeclaration:
             return self.parse_function_dec()
         elif self.cur_token()[0] == Token.Word and self.cur_token(1)[0] == Token.OPara:
-            return self.parse_function_call()
+            node = self.parse_function_call()    
+            self.expect(Token.SemiColon)
+            self.idx += 1
+            return node
+        return self.parse_experssion()
+    
+    def parse_experssion(self):
+        if self.cur_token()[0] == Token.Word and self.cur_token(1)[0] == Token.OPara:
+            return  self.parse_function_call(is_inner = True)    
         return self.parse_literal()
     
     def parse_function_dec(self):
@@ -105,8 +113,15 @@ class Parser(BaseParser):
 
         self.expect(Token.OPara)
         self.idx += 1
+        
+        args = []
+        while self.cur_token()[0] != Token.CPara:
+            args.append(self.parse_experssion())
+
         self.expect(Token.CPara)
         self.idx += 1
+
+
 
         self.expect(Token.OCurl)
         self.idx += 1
@@ -114,14 +129,14 @@ class Parser(BaseParser):
         block = []
         
         while self.cur_token()[0] != Token.CCurl:
-            block.append(self.parse_experssion())
+            block.append(self.parse_statement())
         
         self.expect(Token.CCurl)
         self.idx += 1
         
-        return (Node.FuncDec,{"func_name" : func_name,"block": block})
+        return (Node.FuncDec,{"func_name" : func_name,"args" : args,"block": block})
 
-    def parse_function_call(self):
+    def parse_function_call(self,is_inner = False):
         func_name =  self.cur_token()[1]
         self.idx += 1
         
@@ -135,10 +150,9 @@ class Parser(BaseParser):
         self.expect(Token.CPara)
         self.idx += 1
         
-        self.expect(Token.SemiColon)
-        self.idx += 1
+
         
-        return (Node.FuncCall,{"func_name" : func_name,"args": args})
+        return (Node.FuncCall if not is_inner else Node.FuncInnerCall,{"func_name" : func_name,"args": args})
         
 
     def parse_literal(self):
@@ -148,6 +162,9 @@ class Parser(BaseParser):
             return (Node.String , {"val" : token[1]})
         elif token[0] == Token.Number:
             return (Node.Number , {"val" : token[1]})
+
+        elif token[0] == Token.Word:
+            return (Node.Variable , {"val" : token[1]})
         else:
             print(f"Unexpected literal '{token}'")
             exit(69)
@@ -163,17 +180,23 @@ class Parser(BaseParser):
                 if nodes[0] == Node.FuncDec:
                     print("  " * depth + "[function declaration]")
                     print("  " * depth + "[name] " +  nodes[1]["func_name"])
+                    if len(nodes[1]["args"]):
+                        print("  " * depth + "[args]")
+                        self.print_tree(nodes[1]["args"],depth + 1)
                     print("  " * depth + "[block]")
                     self.print_tree(nodes[1]["block"],depth + 1)
-                elif nodes[0] == Node.FuncCall:
+                elif nodes[0] == Node.FuncCall or nodes[0] == Node.FuncInnerCall:
                     print("  " * depth + "[function call]")
                     print("  " * depth + "[name] " +  nodes[1]["func_name"])
-                    print("  " * depth + "[args]")
-                    self.print_tree(nodes[1]["args"],depth + 1)
+                    if len(nodes[1]["args"]):
+                        print("  " * depth + "[args]")
+                        self.print_tree(nodes[1]["args"],depth + 1)
                 elif nodes[0] == Node.String:
                     print("  " * depth + "[string literal] " + nodes[1]["val"])
                 elif nodes[0] == Node.Number:
                     print("  " * depth + "[number literal] " + nodes[1]["val"])
+                elif nodes[0] == Node.Variable:
+                    print("  " * depth + "[variable] " + nodes[1]["val"])
                 else:
                     print(f"Unhandled node in print_tree function '{nodes}'")
                     exit(69)
@@ -183,7 +206,6 @@ class Transpiler:
     def __init__(self):
         self.src = ""
         
-    
     def transpile(self,nodes,depth = -1):
         if nodes == None: return
         src = ""
@@ -193,17 +215,21 @@ class Transpiler:
             return src
         else:
             if nodes[0] == Node.FuncDec:
-                src =  '\t' * depth + f"def {nodes[1]['func_name']}():\n"
+                src +=  '\t' * depth + f"def {nodes[1]['func_name']}("
+                src += self.transpile(nodes[1]["args"],depth + 1)
+                src += "):\n"
                 src += '\t' * (depth + 1) + self.transpile(nodes[1]["block"],depth + 1)
                 return  src
-            elif nodes[0] == Node.FuncCall:
+            elif nodes[0] == Node.FuncCall or nodes[0] == Node.FuncInnerCall:
                 src = nodes[1]["func_name"] + "("
                 src += self.transpile(nodes[1]["args"],depth + 1)
-                src += ")\n"
+                src += ")" + ("\n" if  nodes[0] == Node.FuncCall else "")
                 return src
             elif nodes[0] == Node.String:
                 return '"'+nodes[1]["val"]+'"'
             elif nodes[0] == Node.Number:
+                return nodes[1]["val"]
+            elif nodes[0] == Node.Variable:
                 return nodes[1]["val"]
             else:
                 print(f"Unhandled node in transpile function '{nodes}'")
