@@ -1,2 +1,0 @@
-esper
-pygame-ce
