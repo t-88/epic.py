@@ -1,4 +1,4 @@
-def a():
-	print("Holla")
-
-a()
+def init():
+	pass
+def process():
+	pass
