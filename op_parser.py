@@ -20,7 +20,8 @@ StatementType = enum.Enum("StatementType",[
     
     # key nodes
     "Program",
-    "FuncCall"
+    "FuncCall",
+    "FuncDeclaration",
 ])
 
 OP_MAP = {
@@ -109,6 +110,15 @@ class StatDefaulFunc(Statement):
     def __str__(self):
         return f"<StatDefaulFunc name={self.name} body={self.body}>"
 
+class StatFuncDeclartion(Statement):
+    def __init__(self,name,body):
+        super().__init__(StatementType.FuncDeclaration)
+        self.name = name                
+        self.body = body    
+    def __str__(self):
+        return f"<StatFuncDeclartion name={self.name} body={self.body}>"
+
+
 
 class OPParser(BaseParser):
     def __init__(self):
@@ -141,6 +151,10 @@ class OPParser(BaseParser):
             return self.parse_block()
         elif self.idx < len(self.src) and self.cur().type == TokenType._if:
             return self.parse_conditional()
+        
+        elif self.idx < len(self.src) and self.cur().type == TokenType.Func:
+            return self.parse_func_declartion()
+        
         else:
             expr =  self.parse_func_call()
             self.expect(TokenType.SemiColon)
@@ -164,24 +178,35 @@ class OPParser(BaseParser):
     
     
     def parse_func_call(self):
-        if (self.cur().type == TokenType.Identifier and self.cur(1).type == TokenType.OCurl) or (self.cur().type == TokenType.Outer_Func):
+        if (self.cur().type == TokenType.Identifier and self.cur(1).type == TokenType.OPara) or (self.cur().type == TokenType.Outer_Func):
             name = self.next().val
-            
+
             self.expect(TokenType.OPara)
             self.next()
             body = self.parse_boolean_ops() 
             self.expect(TokenType.CPara)
-            self.next()
-            
+            self.next()            
             return StatDefaulFunc(name,body)     
             
-            
-        return self.parse_var_assigment();
+        return self.parse_var_assigment()
         
        
     
     
-    
+    def parse_func_declartion(self):
+        self.next()
+        name =  self.next().val
+        self.expect(TokenType.OPara)
+        self.next()
+        self.expect(TokenType.CPara)
+        self.next()
+        
+        body = self.parse_statements()
+        return StatFuncDeclartion(name,body)
+        
+        
+        
+            
     def parse_var_assigment(self):
         if self.cur().type == TokenType.Identifier and self.cur(1).type == TokenType.Equal:
             name = self.next().val
@@ -245,7 +270,7 @@ class OPParser(BaseParser):
             return Statement(StatementType.Number,tkn.val)
         elif tkn.type == TokenType.Identifier:
             return Statement(StatementType.Identifier,tkn.val)
-        elif tkn.type == TokenType.CCurl:
+        elif tkn.type == TokenType.CCurl or tkn.type == TokenType.CPara:
             self.idx -= 1
             return None
         else:
@@ -263,11 +288,11 @@ class OPParser(BaseParser):
             for statement in node.statements:
                 self.print_tree(statement,depth + 1)
         elif node.type == StatementType.String:
-            print(sep + str(node.val))
+            print(sep +  "string " + node.val)
         elif node.type == StatementType.Number:
-            print(sep + str(node.val))
+            print(sep + "number " + node.val)
         elif node.type == StatementType.Identifier:
-            print(sep + str(node.val))                
+            print(sep +  "identifier " + node.val)
         elif node.type == StatementType.ArthOp:
             print(sep + OP_MAP[node.op])
             self.print_tree(node.left , depth + 1)
@@ -294,7 +319,13 @@ class OPParser(BaseParser):
         elif node.type == StatementType.FuncCall:
             print(sep + "FuncCall")
             print(sep + node.name)
+            if node.body != None:
+                self.print_tree(node.body , depth + 1)   
+        elif node.type == StatementType.FuncDeclaration:
+            print(sep + "FuncDeclaration")
+            print(sep + node.name)
             self.print_tree(node.body , depth + 1)                     
+                              
         else:
             print(f"[Parser Error] Unexpected node to be printed '{node}'")
             exit(69)

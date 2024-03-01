@@ -102,10 +102,11 @@ class Lexer(BaseParser):
                 else:
                     self.tokens.append(Token(SINGLE_TOKENS_MAP[chr],chr))
             elif chr == '"' or chr == "'":
-                stop = self.next()
+                stop = chr
                 word = ""
                 while self.idx < len(self.src) and self.cur() != stop:
                     word += self.next()
+                
                 self.next()
                 self.tokens.append(Token(TokenType.String,word))
             elif chr.isalpha():

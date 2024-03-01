@@ -1,4 +1,4 @@
-a = 2
-if (a > 5 * 1):
-	a = 69
-print(a)
+def a():
+	print("Holla")
+
+a()
