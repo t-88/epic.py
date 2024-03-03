@@ -25,22 +25,22 @@ class OPTraspiler:
         elif node.type == StatementType.BooleanOp:
             src =  self.transpile(node.left) + " " +  node.op + " " +  self.transpile(node.right)
         elif node.type == StatementType.VarAssigment:
-            src =  node.name  + " = " +  self.transpile(node.val)
+            src = identation +  node.name  + " = " +  self.transpile(node.val)
         elif node.type == StatementType.Para:
             src =  f"({self.transpile(node.expr)})"
         elif node.type == StatementType.Block:
             for (idx , statement) in enumerate(node.block):
-                src += identation + self.transpile(statement)
+                src += self.transpile(statement,iden)
                 if idx != len(node.block) - 1 : src += "\n"
                 
         elif node.type == StatementType.Conditional:
-            src = "if " + self.transpile(node.condition) + ":\n"
+            src = identation + "if " + self.transpile(node.condition) + ":\n"
             src += self.transpile(node.block,iden + 1)
         elif node.type == StatementType.FuncCall:
             src = node.name + "("
             if node.body != None:
-                src += self.transpile(node.body,0)
-            src += ")\n"
+                src +=  self.transpile(node.body,0)
+            src += ")"
 
              
         elif node.type == StatementType.FuncDeclaration:
@@ -49,6 +49,10 @@ class OPTraspiler:
                 src += (iden + 1) * "\t" + "pass"
             else:
                 src += self.transpile(node.body,iden + 1)
+        elif node.type == StatementType.TableLookup:
+            src += node.table + "["
+            src += f'"{node.key}"'
+            src += "]"
         else:
             print(f"[Transpiler Error] Unexpected node to be transpiled '{node}'")
             exit(69)

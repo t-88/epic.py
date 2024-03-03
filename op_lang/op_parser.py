@@ -22,6 +22,8 @@ StatementType = enum.Enum("StatementType",[
     "Program",
     "FuncCall",
     "FuncDeclaration",
+    "TableLookup",
+
 ])
 
 OP_MAP = {
@@ -34,7 +36,10 @@ OP_MAP = {
     ">=" : "Bigger Or Equal",
     "=<" : "Lesser Or Equal",
     "==" : "Equal",
+    
 }
+
+LOOKUP_TABLES = ["Components","Keys"]
 
 class Statement:
     def __init__(self,typ,val = ""):
@@ -102,13 +107,13 @@ class StatConditional(Statement):
         return f"<StatConditional condition={self.condition} block={self.block}>"
 
 
-class StatDefaulFunc(Statement):
+class StatFuncCall(Statement):
     def __init__(self,name,body):
         super().__init__(StatementType.FuncCall)
         self.name = name                
         self.body = body    
     def __str__(self):
-        return f"<StatDefaulFunc name={self.name} body={self.body}>"
+        return f"<StatFuncCall name={self.name} body={self.body}>"
 
 class StatFuncDeclartion(Statement):
     def __init__(self,name,body):
@@ -117,6 +122,15 @@ class StatFuncDeclartion(Statement):
         self.body = body    
     def __str__(self):
         return f"<StatFuncDeclartion name={self.name} body={self.body}>"
+
+
+class StatTableLookup(Statement):
+    def __init__(self,table,key):
+        super().__init__(StatementType.TableLookup)
+        self.table = table                
+        self.key = key    
+    def __str__(self):
+        return f"<StatTableLookup table={self.table} key={self.key}>"
 
 
 
@@ -131,6 +145,9 @@ class OPParser(BaseParser):
         
     def expect(self,typ):
         if self.cur().type != typ:
+            print(self.program.statements)
+            print(self.idx)
+            print(self.src[self.idx:])
             print(f"[Parser Expect Error] expected {typ} got {self.cur().type}")
             exit(69)
             
@@ -142,23 +159,23 @@ class OPParser(BaseParser):
         self.program = ExprProgram()
         
         while self.idx < len(self.src):
-            self.program.statements.append(self.parse_statements())
+            node = self.parse_statements()
+            self.program.statements.append(node)
         
         return self.program
     
     def parse_statements(self):
-        if self.idx < len(self.src) and self.cur().type == TokenType.OCurl:
+        if self.cur().type == TokenType.OCurl:
             return self.parse_block()
-        elif self.idx < len(self.src) and self.cur().type == TokenType._if:
+        elif self.cur().type == TokenType._if:
             return self.parse_conditional()
-        
-        elif self.idx < len(self.src) and self.cur().type == TokenType.Func:
+        elif self.cur().type == TokenType.Func:
             return self.parse_func_declartion()
-        
         else:
             expr =  self.parse_func_call()
             self.expect(TokenType.SemiColon)
             self.next()            
+
             return expr
     
     def parse_block(self):
@@ -166,32 +183,36 @@ class OPParser(BaseParser):
         block = []
         while self.cur().type != TokenType.CCurl:
             block.append(self.parse_statements())
-
         self.next()        
         return StatBlock(block)
         
     def parse_conditional(self):
         self.next()
         condition = self.parse_boolean_ops()
+        
         block = self.parse_block()
         return StatConditional(condition,block)     
     
     
     def parse_func_call(self):
+        
         if (self.cur().type == TokenType.Identifier and self.cur(1).type == TokenType.OPara) or (self.cur().type == TokenType.Outer_Func):
+            
             name = self.next().val
-
             self.expect(TokenType.OPara)
             self.next()
             body = self.parse_boolean_ops() 
             self.expect(TokenType.CPara)
             self.next()            
-            return StatDefaulFunc(name,body)     
+
+            return StatFuncCall(name,body)
+         
             
         return self.parse_var_assigment()
         
        
     
+
     
     def parse_func_declartion(self):
         self.next()
@@ -208,12 +229,23 @@ class OPParser(BaseParser):
         
             
     def parse_var_assigment(self):
-        if self.cur().type == TokenType.Identifier and self.cur(1).type == TokenType.Equal:
-            name = self.next().val
-            self.next()
-            val = self.parse_var_assigment()
+        if self.cur().type == TokenType.Identifier:
+            name = self.cur().val
+            
+            i = 1
+            while self.cur(i).type == TokenType.Dot and self.cur(i + 1).type == TokenType.Identifier:
+                name += self.cur(i).val + self.cur(i + 1).val
+                i += 2
 
-            return StatVarAssigment(name,val)
+            if self.idx < len(self.src) and self.cur(i).type == TokenType.Equal:
+                for _ in range(i):
+                    self.next()
+                self.next()
+                val = self.parse_func_call()
+
+                return StatVarAssigment(name,val)
+
+
         return self.parse_boolean_ops()
     
 
@@ -242,6 +274,8 @@ class OPParser(BaseParser):
 
 
         return left
+    
+    
    
     def parse_muliplication(self):
         left = self.parse_para()
@@ -256,12 +290,25 @@ class OPParser(BaseParser):
     def parse_para(self):
         if self.idx < len(self.src) and self.cur().type == TokenType.OPara:
             self.next()
-            expr = self.parse_boolean_ops()
+            expr = self.parse_func_call()
             self.expect(TokenType.CPara)
             self.next()
+
             return ExprPara(expr)
-        return self.parse_literal()
+        
+        return self.parse_dot_notation()
     
+    
+    def parse_dot_notation(self):
+        if self.cur().type == TokenType.Identifier and self.cur().val in LOOKUP_TABLES and self.cur(1).type == TokenType.Dot:
+            table =  self.next().val
+            self.next()
+            self.expect(TokenType.Identifier)
+            key =  self.next().val
+            return StatTableLookup(table,key)
+            
+        return self.parse_literal()
+            
     def parse_literal(self):       
         tkn = self.next()
         if tkn.type == TokenType.String:
@@ -269,7 +316,16 @@ class OPParser(BaseParser):
         elif tkn.type == TokenType.Number:
             return Statement(StatementType.Number,tkn.val)
         elif tkn.type == TokenType.Identifier:
-            return Statement(StatementType.Identifier,tkn.val)
+            i = 0
+            name = tkn.val
+            while self.cur(i).type == TokenType.Dot and self.cur(i + 1).type == TokenType.Identifier:
+                name += self.cur(i).val + self.cur(i + 1).val
+                i += 2
+
+            for _ in range(i):
+                self.next()
+            
+            return Statement(StatementType.Identifier,name)
         elif tkn.type == TokenType.CCurl or tkn.type == TokenType.CPara:
             self.idx -= 1
             return None
@@ -282,7 +338,6 @@ class OPParser(BaseParser):
             self.print_tree(self.program)
             return 
         sep = "  " * depth
-        
         if node.type == StatementType.Program:
             print("program")
             for statement in node.statements:
@@ -324,7 +379,11 @@ class OPParser(BaseParser):
         elif node.type == StatementType.FuncDeclaration:
             print(sep + "FuncDeclaration")
             print(sep + node.name)
-            self.print_tree(node.body , depth + 1)                     
+            self.print_tree(node.body , depth + 1)  
+        elif node.type == StatementType.TableLookup:
+            print(sep + "TableLookup")
+            print(sep + f"table: {node.table}")
+            print(sep + f"key: {node.key}")
                               
         else:
             print(f"[Parser Error] Unexpected node to be printed '{node}'")

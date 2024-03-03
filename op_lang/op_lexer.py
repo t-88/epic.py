@@ -7,17 +7,16 @@ TokenType = enum.Enum(
         # single tokens
         "OPara", "CPara",
         "OCurl", "CCurl",
+        "OBrak", "CBrak",
         "Dot", "Comma",
         "Equal", "SemiColon",
         "Add", "Minus", 
         "Mult", "Div",
         "Bigger", "Lesser",
 
-        
         # two or more tokens
         "Equality", 
         "BiggerOrEqual", "LesserOrEqual",
-        
         
         # literals
         "Identifier", "String",
@@ -40,6 +39,8 @@ SINGLE_TOKENS_MAP = {
     ")" : TokenType.CPara     ,
     "{" : TokenType.OCurl     ,
     "}" : TokenType.CCurl     ,
+    "[" : TokenType.OBrak     ,
+    "]" : TokenType.CBrak     ,
     "." : TokenType.Dot       ,
     "," : TokenType.Comma     ,
     "=" : TokenType.Equal     ,
@@ -50,6 +51,7 @@ SINGLE_TOKENS_MAP = {
     "/" :  TokenType.Div      ,
     ">" : TokenType.Bigger,
     "<" : TokenType.Lesser,
+    
 }
 SINGLE_TOKENS = SINGLE_TOKENS_MAP.keys()
 
@@ -111,7 +113,7 @@ class Lexer(BaseParser):
                 self.tokens.append(Token(TokenType.String,word))
             elif chr.isalpha():
                 word = chr
-                while self.idx < len(self.src) and self.cur().isalpha():
+                while self.idx < len(self.src) and ((self.cur().isalpha() or self.cur() == "_")):
                     word +=  self.next()
                 
                 typ = TokenType.Identifier

@@ -11,6 +11,13 @@ parser.parse(src)
 transpiler = op_transpiler.OPTraspiler()
 src = transpiler.transpile(parser.program)
 
+src = f"""
+# imports
+from lookup_tables import *
+from functions import *
+
+# transpiled code
+{src}
+"""
 with open("build/output.py","w") as f:
-    f.write()
     f.write(src)
