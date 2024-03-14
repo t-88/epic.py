@@ -1,6 +1,6 @@
 import op_parser
 import op_transpiler
-src = open("main.op","r").read()
+src = open("op_lang/main.op","r").read()
 
 
 parser =  op_parser.OPParser()
@@ -19,5 +19,5 @@ from functions import *
 # transpiled code
 {src}
 """
-with open("build/output.py","w") as f:
+with open("op_lang/build/output.py","w") as f:
     f.write(src)

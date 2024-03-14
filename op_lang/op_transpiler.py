@@ -1,4 +1,5 @@
-from op_parser import *
+from op_lang.op_parser import *
+
 
 
 class OPTraspiler:
@@ -37,14 +38,23 @@ class OPTraspiler:
             src = identation + "if " + self.transpile(node.condition) + ":\n"
             src += self.transpile(node.block,iden + 1)
         elif node.type == StatementType.FuncCall:
-            src = node.name + "("
-            if node.body != None:
-                src +=  self.transpile(node.body,0)
+
+            src = identation + node.name + "("
+            for (i,arg) in enumerate(node.args):
+               src += self.transpile(arg)
+               if i < len(node.args) - 1:
+                   src += ","
             src += ")"
 
              
         elif node.type == StatementType.FuncDeclaration:
-            src = "def " + node.name + "():\n" 
+            src = "def " + node.name + "("
+            for (i,arg) in enumerate(node.args):
+               src += arg
+               if i < len(node.args) - 1:
+                   src += ","
+                
+            src += "):\n" 
             if len(node.body.block) == 0:
                 src += (iden + 1) * "\t" + "pass"
             else:

@@ -5,11 +5,15 @@ class Engine:
     def __init__(self):
         self.is_running = True
         self.display = None
+        self.init_callback = None
         self.process_callback = None
         
     def init(self):
         pygame.init()
         self.display = pygame.display.set_mode((600,400))
+        
+        if self.init_callback: self.init_callback()
+        
         
     def run(self):
         while self.is_running:
@@ -23,7 +27,7 @@ class Engine:
             
             if self.process_callback: self.process_callback()
 
-            self.display.fill((0,0,0))
             pygame.display.flip()     
+            self.display.fill((0,0,0))
             
 engine = Engine()

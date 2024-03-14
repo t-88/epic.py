@@ -16,3 +16,12 @@ class Button:
         self.callback = callback
         self.clicked = False
         
+        
+class RectShape:
+    def __init__(self):
+        pass
+                
+class InputCallback:
+    def __init__(self,callback = None):
+        self.callback = callback
+    

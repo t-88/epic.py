@@ -1,5 +1,5 @@
 import enum
-from op_base_parser import *
+from op_lang.op_base_parser import *
 
 TokenType = enum.Enum(
     "TokenType",

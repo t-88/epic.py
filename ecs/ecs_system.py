@@ -5,8 +5,17 @@ from ecs.ecs_component import *
 
 class RectRendererSystem(esper.Processor):
     def process(self):
-        for ent , (pos,size,color) in esper.get_components(Position,Size,Color):
+        for ent , (rect,pos,size,color) in esper.get_components(RectShape,Position,Size,Color):
             pygame.draw.rect(engine.display,[color.r,color.g,color.b],pygame.Rect(pos.x,pos.y,size.w,size.h))
+
+class KeyboardInputSyatem(esper.Processor):
+    def process(self):
+        for ent , (input_callback,) in esper.get_components(InputCallback):
+            input_callback.callback(ent)
+
+
+
+
 
 class ButtonSystem(esper.Processor):
     def process(self):        

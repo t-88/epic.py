@@ -1,6 +1,7 @@
-from op_base_parser import *
-from op_lexer import *
+from op_lang.op_base_parser import *
+from op_lang.op_lexer import *
 import enum
+
 
 
 
@@ -108,18 +109,19 @@ class StatConditional(Statement):
 
 
 class StatFuncCall(Statement):
-    def __init__(self,name,body):
+    def __init__(self,name,args):
         super().__init__(StatementType.FuncCall)
         self.name = name                
-        self.body = body    
+        self.args = args    
     def __str__(self):
         return f"<StatFuncCall name={self.name} body={self.body}>"
 
 class StatFuncDeclartion(Statement):
-    def __init__(self,name,body):
+    def __init__(self,name,args,body):
         super().__init__(StatementType.FuncDeclaration)
         self.name = name                
         self.body = body    
+        self.args = args
     def __str__(self):
         return f"<StatFuncDeclartion name={self.name} body={self.body}>"
 
@@ -201,11 +203,20 @@ class OPParser(BaseParser):
             name = self.next().val
             self.expect(TokenType.OPara)
             self.next()
-            body = self.parse_boolean_ops() 
+            
+            args = []
+            while self.cur().type != TokenType.CPara:
+                args.append(self.parse_boolean_ops())
+                
+                if self.cur().type != TokenType.CPara:
+                    self.expect(TokenType.Comma)
+                    self.next()
+                
+                 
             self.expect(TokenType.CPara)
             self.next()            
 
-            return StatFuncCall(name,body)
+            return StatFuncCall(name,args)
          
             
         return self.parse_var_assigment()
@@ -219,11 +230,21 @@ class OPParser(BaseParser):
         name =  self.next().val
         self.expect(TokenType.OPara)
         self.next()
+        
+        
+        args = []
+        while self.cur().type != TokenType.CPara:
+            args.append(self.parse_literal().val)
+
+            if self.cur().type != TokenType.CPara:
+                self.expect(TokenType.Comma)
+                self.next()
+        
         self.expect(TokenType.CPara)
         self.next()
         
         body = self.parse_statements()
-        return StatFuncDeclartion(name,body)
+        return StatFuncDeclartion(name,args,body)
         
         
         
@@ -374,11 +395,11 @@ class OPParser(BaseParser):
         elif node.type == StatementType.FuncCall:
             print(sep + "FuncCall")
             print(sep + node.name)
-            if node.body != None:
-                self.print_tree(node.body , depth + 1)   
+            print(sep + str(node.args))
         elif node.type == StatementType.FuncDeclaration:
             print(sep + "FuncDeclaration")
             print(sep + node.name)
+            print(sep + str(node.args))
             self.print_tree(node.body , depth + 1)  
         elif node.type == StatementType.TableLookup:
             print(sep + "TableLookup")
