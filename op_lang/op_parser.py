@@ -1,9 +1,13 @@
-from op_lang.op_base_parser import *
-from op_lang.op_lexer import *
 import enum
 
 
-
+try:
+    from op_base_parser import *
+    from op_lexer import *
+except ImportError:
+    from .op_base_parser import *
+    from .op_lexer import *
+    
 
 
 StatementType = enum.Enum("StatementType",[
@@ -16,7 +20,9 @@ StatementType = enum.Enum("StatementType",[
     "BooleanOp",    
     "VarAssigment",
     "Para",
-    "Block", "Conditional",
+    "Block", 
+    "Conditional",
+    "ForIteration",
     
     
     # key nodes
@@ -48,7 +54,7 @@ class Statement:
         self.val = val
         
     def __str__(self):
-        return f"<ExprAdd type={self.type} val={self.val}>"
+        return f"<Statement type={self.type} val={self.val}>"
     def __repr__(self):
         return self.__str__()  
 
@@ -106,6 +112,17 @@ class StatConditional(Statement):
         self.block = block    
     def __str__(self):
         return f"<StatConditional condition={self.condition} block={self.block}>"
+
+class StatForLoop(Statement):
+    def __init__(self,var,start,end,block):
+        super().__init__(StatementType.ForIteration)
+        self.var = var                
+        self.start = start                
+        self.end = end                
+        self.block = block                
+    def __str__(self):
+        return f"<StatForLoop var={self.var} start={self.start} end={self.end}>"
+
 
 
 class StatFuncCall(Statement):
@@ -171,6 +188,8 @@ class OPParser(BaseParser):
             return self.parse_block()
         elif self.cur().type == TokenType._if:
             return self.parse_conditional()
+        elif self.cur().type == TokenType._for:
+            return self.parse_for_loop()
         elif self.cur().type == TokenType.Func:
             return self.parse_func_declartion()
         else:
@@ -195,6 +214,26 @@ class OPParser(BaseParser):
         block = self.parse_block()
         return StatConditional(condition,block)     
     
+    def parse_for_loop(self):
+        self.next()
+        
+        self.expect(TokenType.OPara); self.next()
+        
+        var = self.parse_literal()
+        self.expect(TokenType._in); self.next()
+        start = self.parse_literal()
+        self.expect(TokenType.Dot); self.next()
+        self.expect(TokenType.Dot); self.next()
+        end = self.parse_literal()
+
+        self.expect(TokenType.CPara); self.next()
+
+        block = self.parse_block()
+        
+         
+        return StatForLoop(var,start,end,block)     
+    
+ 
     
     def parse_func_call(self):
         
@@ -206,7 +245,7 @@ class OPParser(BaseParser):
             
             args = []
             while self.cur().type != TokenType.CPara:
-                args.append(self.parse_boolean_ops())
+                args.append(self.parse_var_assigment())
                 
                 if self.cur().type != TokenType.CPara:
                     self.expect(TokenType.Comma)
@@ -334,18 +373,20 @@ class OPParser(BaseParser):
         tkn = self.next()
         if tkn.type == TokenType.String:
             return Statement(StatementType.String,tkn.val)
-        elif tkn.type == TokenType.Number:
-            return Statement(StatementType.Number,tkn.val)
+        elif tkn.type == TokenType.Number or tkn.type == TokenType.Minus:
+            if tkn.type == TokenType.Minus:
+                num = self.cur().val; self.next()
+                return Statement(StatementType.Number,"-"+num)
+            else:                
+                return Statement(StatementType.Number,tkn.val)
         elif tkn.type == TokenType.Identifier:
             i = 0
             name = tkn.val
             while self.cur(i).type == TokenType.Dot and self.cur(i + 1).type == TokenType.Identifier:
                 name += self.cur(i).val + self.cur(i + 1).val
                 i += 2
-
             for _ in range(i):
                 self.next()
-            
             return Statement(StatementType.Identifier,name)
         elif tkn.type == TokenType.CCurl or tkn.type == TokenType.CPara:
             self.idx -= 1
@@ -391,11 +432,18 @@ class OPParser(BaseParser):
         elif node.type == StatementType.Conditional:
             print(sep + "Conditional")
             self.print_tree(node.condition , depth + 1)                     
+            self.print_tree(node.block , depth + 1) 
+        elif node.type == StatementType.ForIteration:
+            print(sep + "ForIteration")
+            self.print_tree(node.var , depth + 1)                     
+            self.print_tree(node.start , depth + 1)                     
+            self.print_tree(node.end , depth + 1)                     
             self.print_tree(node.block , depth + 1)                     
         elif node.type == StatementType.FuncCall:
             print(sep + "FuncCall")
             print(sep + node.name)
-            print(sep + str(node.args))
+            for arg in node.args:
+               self.print_tree(arg,depth+1)
         elif node.type == StatementType.FuncDeclaration:
             print(sep + "FuncDeclaration")
             print(sep + node.name)

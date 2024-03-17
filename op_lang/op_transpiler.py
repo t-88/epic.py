@@ -1,20 +1,23 @@
-from op_lang.op_parser import *
-
+try:
+    from op_parser import *
+except ImportError:
+    from .op_parser import *
 
 
 class OPTraspiler:
     def __init__(self):
         self.src  = ""
+        self.prefix_functions = ""
     
-    
-    def transpile(self,node,iden = 0):
+    def transpile(self,node,iden = 0,prefix_functions = ""):
         src = "" 
         identation = iden * "\t"
         
         if node.type == StatementType.Program:
+            self.prefix_functions = prefix_functions
             for (idx,statement) in enumerate(node.statements) :
                 src += self.transpile(statement)
-                if idx != len(node.statements) - 1 : src += "\n"
+                src += "\n"
         elif node.type == StatementType.String:
             src = f'"{node.val}"'
         elif node.type == StatementType.Number:
@@ -33,7 +36,10 @@ class OPTraspiler:
             for (idx , statement) in enumerate(node.block):
                 src += self.transpile(statement,iden)
                 if idx != len(node.block) - 1 : src += "\n"
-                
+            
+            if len(node.block) == 0:
+                src = identation + "pass"
+            
         elif node.type == StatementType.Conditional:
             src = identation + "if " + self.transpile(node.condition) + ":\n"
             src += self.transpile(node.block,iden + 1)
@@ -45,10 +51,12 @@ class OPTraspiler:
                if i < len(node.args) - 1:
                    src += ","
             src += ")"
-
-             
+        elif node.type == StatementType.ForIteration:
+            src = identation + f"for {self.transpile(node.var)} in range({self.transpile(node.start)},{self.transpile(node.end)}):\n"
+            src += self.transpile(node.block , iden + 1)                     
+            
         elif node.type == StatementType.FuncDeclaration:
-            src = "def " + node.name + "("
+            src = "def " + self.prefix_functions + node.name + "("
             for (i,arg) in enumerate(node.args):
                src += arg
                if i < len(node.args) - 1:

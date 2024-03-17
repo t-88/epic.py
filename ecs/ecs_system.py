@@ -8,12 +8,10 @@ class RectRendererSystem(esper.Processor):
         for ent , (rect,pos,size,color) in esper.get_components(RectShape,Position,Size,Color):
             pygame.draw.rect(engine.display,[color.r,color.g,color.b],pygame.Rect(pos.x,pos.y,size.w,size.h))
 
-class KeyboardInputSyatem(esper.Processor):
+class UpdateCallbackSystem(esper.Processor):
     def process(self):
-        for ent , (input_callback,) in esper.get_components(InputCallback):
-            input_callback.callback(ent)
-
-
+        for ent , (update_callback,) in esper.get_components(UpdateCallback):
+            update_callback.callback(ent)
 
 
 

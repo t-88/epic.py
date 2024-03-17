@@ -1,3 +1,5 @@
+from .types import *
+
 class Position:
     def __init__(self,x = 0 , y = 0):
         self.x = x
@@ -16,12 +18,24 @@ class Button:
         self.callback = callback
         self.clicked = False
         
+class Storage:
+    def __init__(self,data = {}):
+        self.data = DotDict(data)
+                
         
 class RectShape:
     def __init__(self):
         pass
                 
-class InputCallback:
+class UpdateCallback:
     def __init__(self,callback = None):
         self.callback = callback
-    
+
+
+
+class IdComponent:
+    def __init__(self,id = None):
+        self.id = id
+
+
+from pwn import *

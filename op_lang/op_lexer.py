@@ -1,5 +1,10 @@
 import enum
-from op_lang.op_base_parser import *
+
+try:
+    from op_base_parser import *
+except ImportError:
+    from .op_base_parser import *
+
 
 TokenType = enum.Enum(
     "TokenType",
@@ -27,6 +32,8 @@ TokenType = enum.Enum(
         "And",  "Or", 
         "Func", "Return",
         "false" , "true",
+        "_for",
+        "_in",
         
         # function
         "Outer_Func",
@@ -68,6 +75,8 @@ KEYWORDS_MAP = {
     "false"  : TokenType.false,
     "true"   : TokenType.true,
     "if"   : TokenType._if,
+    "for"   : TokenType._for,
+    "in"   : TokenType._in,
 } 
 KEYWORDS = KEYWORDS_MAP.keys()
 

@@ -8,12 +8,18 @@ class Engine:
         self.init_callback = None
         self.process_callback = None
         
+        self.width = 600
+        self.height = 400
+        
     def init(self):
         pygame.init()
-        self.display = pygame.display.set_mode((600,400))
+        self.display = pygame.display.set_mode((self.width,self.height))
         
         if self.init_callback: self.init_callback()
+    
         
+    def update(self):
+        pass
         
     def run(self):
         while self.is_running:
@@ -24,7 +30,7 @@ class Engine:
                     if event.key == pygame.K_ESCAPE:
                         self.is_running = False
         
-            
+            self.update()
             if self.process_callback: self.process_callback()
 
             pygame.display.flip()     
