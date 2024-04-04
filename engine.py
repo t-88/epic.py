@@ -10,9 +10,11 @@ class Engine:
         
         self.width = 600
         self.height = 400
+        self.clock = None
         
     def init(self):
         pygame.init()
+        self.clock = pygame.time.Clock()
         self.display = pygame.display.set_mode((self.width,self.height))
         
         if self.init_callback: self.init_callback()
@@ -23,6 +25,7 @@ class Engine:
         
     def run(self):
         while self.is_running:
+            self.clock.tick(60)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.is_running = False

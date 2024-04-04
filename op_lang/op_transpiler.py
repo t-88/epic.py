@@ -8,13 +8,14 @@ class OPTraspiler:
     def __init__(self):
         self.src  = ""
         self.prefix_functions = ""
-    
+        self.funcs = {}
     def transpile(self,node,iden = 0,prefix_functions = ""):
         src = "" 
         identation = iden * "\t"
         
         if node.type == StatementType.Program:
             self.prefix_functions = prefix_functions
+            self.funcs = {}
             for (idx,statement) in enumerate(node.statements) :
                 src += self.transpile(statement)
                 src += "\n"
@@ -44,7 +45,6 @@ class OPTraspiler:
             src = identation + "if " + self.transpile(node.condition) + ":\n"
             src += self.transpile(node.block,iden + 1)
         elif node.type == StatementType.FuncCall:
-
             src = identation + node.name + "("
             for (i,arg) in enumerate(node.args):
                src += self.transpile(arg)
@@ -67,6 +67,8 @@ class OPTraspiler:
                 src += (iden + 1) * "\t" + "pass"
             else:
                 src += self.transpile(node.body,iden + 1)
+                
+            self.funcs[self.prefix_functions + node.name] = src
         elif node.type == StatementType.TableLookup:
             src += node.table + "["
             src += f'"{node.key}"'

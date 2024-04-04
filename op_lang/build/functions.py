@@ -34,7 +34,7 @@ def is_pressed(key):
     return pygame.key.get_pressed()[key]
 
 
-def create_entity(x = -1, y = -1 , w = -1, h = -1,r = -1,g = -1,b = -1,shape = "",on_update = None):
+def create_entity(x = -1, y = -1 , w = -1, h = -1,r = -1,g = -1,b = -1,on_init = None,on_update = None):
     id = esper.create_entity()
     
     # position
@@ -57,9 +57,7 @@ def create_entity(x = -1, y = -1 , w = -1, h = -1,r = -1,g = -1,b = -1,shape = "
         esper.add_component(id,Components["Color"](r,g,b))    
         
         
-    # shape
-    if shape != "":
-        esper.add_component(id,Components[shape]())    
+    esper.add_component(id,Components["Rect"]())    
         
 
     # on update

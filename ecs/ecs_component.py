@@ -19,9 +19,11 @@ class Button:
         self.clicked = False
         
 class Storage:
-    def __init__(self,data = {}):
-        self.data = DotDict(data)
-                
+    def __init__(self,data = []):
+        self.data = DotDict()
+        for i in data:
+            self.data[i['key']] = float(i['val'])
+
         
 class RectShape:
     def __init__(self):
@@ -29,6 +31,11 @@ class RectShape:
                 
 class UpdateCallback:
     def __init__(self,callback = None):
+        self.callback = callback
+
+class InitCallback:
+    def __init__(self,callback = None):
+        self.called = False
         self.callback = callback
 
 

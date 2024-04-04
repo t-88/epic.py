@@ -14,6 +14,14 @@ class UpdateCallbackSystem(esper.Processor):
             update_callback.callback(ent)
 
 
+class InitCallbackSystem(esper.Processor):
+    def process(self):
+        for ent , (init_callback,) in esper.get_components(InitCallback):
+            if init_callback.called: continue
+            init_callback.called = True
+            init_callback.callback(ent)
+
+
 
 class ButtonSystem(esper.Processor):
     def process(self):        
