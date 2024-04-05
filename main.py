@@ -1,9 +1,7 @@
 import json
-from pprint import pprint
 from op_lang import *
 
 src = json.load(open("src.json","r"))
-# pprint(src)
 
 parser =  op_parser.OPParser()
 transpiler = op_transpiler.OPTraspiler()
@@ -54,6 +52,7 @@ for func in transpiler.funcs:
 app_configs = f"""
 engine.width  = {src["comps"]['size']['w']}
 engine.height  = {src["comps"]['size']['h']}
+engine.background_color = {(src["comps"]['color']['r'],src["comps"]['color']['g'],src["comps"]['color']['b'])}
 """
 
 # combine code

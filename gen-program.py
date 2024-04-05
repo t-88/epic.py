@@ -42,12 +42,12 @@ def _1_on_update(ID):
 	data = get_component(ID,Components["Storage"])
 	data.collided = 0
 	scene_id = get_entity_by_id("Main-Scene")
-	scene_size = get_component(ID,Components["Size"])
+	scene_size = get_component(scene_id,Components["Size"])
 	if (pos.x < 0):
 		r_factor = randint(-2,2)
 		r_factor = r_factor / 100
 		data.x_dir = data.x_dir * -1 + r_factor
-	if (pos.x > 400 - scene_size.w):
+	if (pos.x > scene_size.w - size.w):
 		r_factor = randint(-2,2)
 		r_factor = r_factor / 100
 		data.x_dir = data.x_dir * -1 + r_factor
@@ -55,7 +55,10 @@ def _1_on_update(ID):
 		r_factor = randint(-2,2)
 		r_factor = r_factor / 100
 		data.y_dir = data.y_dir * -1 + r_factor
-	if (pos.y > 600 - scene_size.h):
+	if (pos.y > scene_size.h - size.h):
+		r_factor = randint(-2,2)
+		r_factor = r_factor / 100
+		data.y_dir = data.y_dir * -1 + r_factor
 		clear_entities()
 		init()
 	player_id = get_entity_by_id("player")
@@ -116,7 +119,7 @@ def init():
 	esper.add_processor(ecs_system.InitCallbackSystem())    
 	esper.add_processor(ecs_system.UpdateCallbackSystem())    
 	rect0 =  esper.create_entity()
-	esper.add_component(rect0,ecs_component.Position(160,580))
+	esper.add_component(rect0,ecs_component.Position(156,473))
 	esper.add_component(rect0,ecs_component.Size(80,20))
 	esper.add_component(rect0,ecs_component.Color(125,10,50))
 	esper.add_component(rect0,ecs_component.Storage([{'key': 'speed', 'val': '5'}]))
@@ -146,6 +149,7 @@ def process():
 
 engine.width  = 400
 engine.height  = 600
+engine.background_color = (255, 255, 255)
 
 engine.init_callback = init 
 engine.process_callback = process 

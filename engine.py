@@ -7,6 +7,7 @@ class Engine:
         self.display = None
         self.init_callback = None
         self.process_callback = None
+        self.background_color = (0,0,0)
         
         self.width = 600
         self.height = 400
@@ -37,6 +38,6 @@ class Engine:
             if self.process_callback: self.process_callback()
 
             pygame.display.flip()     
-            self.display.fill((0,0,0))
+            self.display.fill(self.background_color)
             
 engine = Engine()
