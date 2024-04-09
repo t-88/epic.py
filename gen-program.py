@@ -13,6 +13,8 @@ entities = {}
 
 
 # generated funcs
+def _0_on_init(ID):
+	pass
 def _0_on_update(ID):
 	pos = get_component(ID,Components["Position"])
 	size = get_component(ID,Components["Size"])
@@ -36,6 +38,8 @@ def _0_on_update(ID):
 				ball_pos.x = pos.x + size.w
 				ball_data.x_dir = 1
 				log(ball_data)
+def _1_on_init(ID):
+	pass
 def _1_on_update(ID):
 	pos = get_component(ID,Components["Position"])
 	size = get_component(ID,Components["Size"])
@@ -110,6 +114,8 @@ def on_init(ID):
 	for i in range(0,10):
 		for j in range(0,5):
 			id = create_entity(i * 30 + 60,j * 30 + 10,29,29,20,120,255,on_block_init,on_block_update)
+def on_update(ID):
+	pass
 
 
 
@@ -119,12 +125,13 @@ def init():
 	esper.add_processor(ecs_system.InitCallbackSystem())    
 	esper.add_processor(ecs_system.UpdateCallbackSystem())    
 	rect0 =  esper.create_entity()
-	esper.add_component(rect0,ecs_component.Position(156,473))
+	esper.add_component(rect0,ecs_component.Position(160,580))
 	esper.add_component(rect0,ecs_component.Size(80,20))
 	esper.add_component(rect0,ecs_component.Color(125,10,50))
 	esper.add_component(rect0,ecs_component.Storage([{'key': 'speed', 'val': '5'}]))
 	esper.add_component(rect0,ecs_component.RectShape())
 	esper.add_component(rect0,ecs_component.IdComponent('player'))
+	esper.add_component(rect0,ecs_component.InitCallback(callback = _0_on_init))
 	esper.add_component(rect0,ecs_component.UpdateCallback(callback = _0_on_update))
 	rect1 =  esper.create_entity()
 	esper.add_component(rect1,ecs_component.Position(191,327))
@@ -133,6 +140,7 @@ def init():
 	esper.add_component(rect1,ecs_component.Storage([{'key': 'collided', 'val': '0'}, {'key': 'x_dir', 'val': '0.5'}, {'key': 'y_dir', 'val': '-0.5'}, {'key': 'speed', 'val': '5'}, {'key': 'vel_x', 'val': '0'}, {'key': 'vel_y', 'val': '0'}]))
 	esper.add_component(rect1,ecs_component.RectShape())
 	esper.add_component(rect1,ecs_component.IdComponent('ball'))
+	esper.add_component(rect1,ecs_component.InitCallback(callback = _1_on_init))
 	esper.add_component(rect1,ecs_component.UpdateCallback(callback = _1_on_update))
 	scene =  esper.create_entity()
 	esper.add_component(scene,ecs_component.Size(400,600))
@@ -140,6 +148,7 @@ def init():
 	esper.add_component(scene,ecs_component.RectShape())
 	esper.add_component(scene,ecs_component.IdComponent('Main-Scene'))
 	esper.add_component(scene,ecs_component.InitCallback(callback = on_init))
+	esper.add_component(scene,ecs_component.UpdateCallback(callback = on_update))
 
 
 

@@ -19,11 +19,11 @@ for (idx , entity) in enumerate(src["children"]):
     gen += identation + f"esper.add_component(rect{idx},ecs_component.Position({comps['pos']['x']},{comps['pos']['y']}))\n"
     gen += identation + f"esper.add_component(rect{idx},ecs_component.Size({comps['size']['w']},{comps['size']['h']}))\n"
     gen += identation + f"esper.add_component(rect{idx},ecs_component.Color({comps['color']['r']},{comps['color']['g']},{comps['color']['b']}))\n"
-    gen += identation + f"esper.add_component(rect{idx},ecs_component.Storage({comps['storage']['map']}))\n"
+    gen += identation + f"esper.add_component(rect{idx},ecs_component.Storage({comps['storage']}))\n"
     gen += identation + f"esper.add_component(rect{idx},ecs_component.RectShape())\n"
-    if "id" in comps:  gen += identation + f"esper.add_component(rect{idx},ecs_component.IdComponent('{comps['id']['id']}'))\n"
+    if "id" in comps:  gen += identation + f"esper.add_component(rect{idx},ecs_component.IdComponent('{comps['id']}'))\n"
     
-    parser.parse(comps["script"]['script'])
+    parser.parse(comps["script"])
     funcs += transpiler.transpile(parser.program,prefix_functions=f"_{idx}_")
     for func in transpiler.funcs:
         if "on_update" in func:
@@ -37,9 +37,9 @@ comps = src['comps']
 gen += identation + f"esper.add_component(scene,ecs_component.Size({comps['size']['w']},{comps['size']['h']}))\n"
 gen += identation + f"esper.add_component(scene,ecs_component.Color({comps['color']['r']},{comps['color']['g']},{comps['color']['b']}))\n"
 gen += identation + f"esper.add_component(scene,ecs_component.RectShape())\n"
-if "id" in comps:  gen += identation + f"esper.add_component(scene,ecs_component.IdComponent('{comps['id']['id']}'))\n"
+if "id" in comps:  gen += identation + f"esper.add_component(scene,ecs_component.IdComponent('{comps['id']}'))\n"
 
-parser.parse(comps["script"]['script'])
+parser.parse(comps["script"])
 funcs += transpiler.transpile(parser.program,prefix_functions=f"")
 for func in transpiler.funcs:
     if "on_update" in func:
