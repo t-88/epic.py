@@ -9,9 +9,16 @@
 # Op Language Synatx 
 - Program = StmtList;
 - StmtList = StmtList stmt | stmt;
-- stmt = AssigmentExpr | IfStmt;
+- Stmt = Expr 
+        | IfStmt 
+        | ForStmt;
+- Expr =  Number 
+        | String
+        | AssigmentExpr
+        | ArthExpr;
 
-- AssigmentExpr = Ident , = , {Number , String , Ident} , SemiCol; 
+
+- AssigmentDeclaration = Ident , = , {Number , String , Ident} , SemiCol; 
 - VariableDeclaration = LetKeyword , Ident = , {Number , String , Ident} , SemiCol; 
 - ArthExpr =  Number , ArthOp , Number 
             | ArthExpr  , ArthOp , Number
@@ -28,10 +35,8 @@
 
 
 - IfStmt = IfKeyword , ( , Expr , ) , StmtBlock ;
+- ForStmt = ForKeyword , ( , VariableDeclaration , SemiCol , BooleanExpr , SemiCol , Expr  , ) , StmtBlock ;
 - StmtBlock = { , StmtList , };
-- Expr =  Number 
-        | String
-        | ArthExpr;
 
 
 - Ident = letter , char*;

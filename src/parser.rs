@@ -23,6 +23,7 @@ pub enum StmType {
     IfStmt,
     ElseIfStmt,
     ElseStmt,
+    ForStmt
 }
 #[derive(Debug)]
 pub enum StmtValue {
@@ -112,9 +113,10 @@ impl Parser {
 
     fn parse_statement(self: &mut Self) -> Stmt {
         match self.get(0).typ {
-            TknType::Keyword(TknKeyword::Let) => self.prase_variable_declaration(),
+            TknType::Keyword(TknKeyword::Let) => self.prase_variable_declaration(true),
             TknType::Keyword(TknKeyword::If) => self.parse_conditional(),
-            _ => self.parse_variable_assignment(),
+            TknType::Keyword(TknKeyword::For) => self.parse_for_stmt(),
+            _ => self.parse_variable_assignment(&mut true),
         }
     }
     fn parse_conditional(self: &mut Self) -> Stmt {
@@ -171,6 +173,31 @@ impl Parser {
             },
         };
     }
+    fn parse_for_stmt(self: &mut Self) -> Stmt {
+        self.expect(TknType::Keyword(TknKeyword::For));
+        self.expect(TknType::OPara);
+
+        let decl = self.prase_variable_declaration( false);
+        self.expect(TknType::SemiCol);
+        let condition = self.parse_booean_op( &mut false);
+        self.expect(TknType::SemiCol);
+        let action = self.parse_variable_assignment(&mut false);
+        self.expect(TknType::CPara);
+
+        let body = self.parse_stmt_block(); 
+
+        return  Stmt {
+            typ: StmType::ForStmt,
+            props: {
+                let mut props : HashMap<String,StmtValue> = HashMap::new();
+                props.insert("decl".to_string(), StmtValue::Stmt(decl));
+                props.insert("condition".to_string(), StmtValue::Stmt(condition));
+                props.insert("action".to_string(), StmtValue::Stmt(action));
+                props.insert("body".to_string(), StmtValue::Stmt(body));
+                props
+            }
+        };
+    }
     fn parse_stmt_block(self: &mut Self) -> Stmt {
         self.expect(TknType::OCurl);
 
@@ -194,13 +221,17 @@ impl Parser {
         self.expect(TknType::CCurl);
     }
 
-    fn prase_variable_declaration(self: &mut Self) -> Stmt {
+    fn prase_variable_declaration(self: &mut Self,expect_semi: bool) -> Stmt {
         self.expect(TknType::Keyword(TknKeyword::Let));
 
         let ident: Stmt = self.parse_literal();
         self.expect(TknType::Equal);
         let val = self.parse_arth_op_add(&mut false);
-        self.expect(TknType::SemiCol);
+
+
+        if(expect_semi) {
+            self.expect(TknType::SemiCol);
+        }
 
         return Stmt {
             typ: StmType::VariableDeclaration,
@@ -212,7 +243,7 @@ impl Parser {
             },
         };
     }
-    fn parse_variable_assignment(self: &mut Self) -> Stmt {
+    fn parse_variable_assignment(self: &mut Self,expect_semi: &mut bool) -> Stmt {
         if self.get(0).typ == TknType::Ident
             && !self.is_empty(1)
             && self.get(1).typ == TknType::Equal
@@ -220,7 +251,11 @@ impl Parser {
             let ident: Stmt = self.parse_literal();
             self.expect(TknType::Equal);
             let val = self.parse_arth_op_add(&mut false);
-            self.expect(TknType::SemiCol);
+
+            if(*expect_semi) {
+                *expect_semi = false;
+                self.expect(TknType::SemiCol);
+            }
 
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             props.insert(String::from("ident"), StmtValue::Stmt(ident));
@@ -232,7 +267,7 @@ impl Parser {
             };
         }
 
-        return self.parse_arth_op_add(&mut true);
+        return self.parse_arth_op_add(expect_semi);
     }
 
     fn parse_arth_op_add(self: &mut Self, expect_semi: &mut bool) -> Stmt {
@@ -561,6 +596,45 @@ impl Parser {
                     _ => unreachable!(),
                 }
             }
+            StmType::ForStmt => {
+                println!("for stmt");
+                match &node.props["decl"] {
+                    StmtValue::Stmt(decl) => {
+                        println!("{}decl", space.repeat((depth + 1) as usize));
+                        self.print_tree(decl, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+
+
+                
+                
+
+                match &node.props["condition"] {
+                    StmtValue::Stmt(condition) => {
+                        println!("{}condition", space.repeat((depth + 1) as usize));
+                        self.print_tree(condition, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+                
+                match &node.props["action"] {
+                    StmtValue::Stmt(action) => {
+                        println!("{}action", space.repeat((depth + 1) as usize));
+                        self.print_tree(action, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+
+                match &node.props["body"] {
+                    StmtValue::Stmt(body) => {
+                        println!("{}body", space.repeat((depth + 1) as usize));
+                        self.print_tree(body, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+
+            }            
             StmType::StmtBlock => {
                 println!("stmt block");
                 match &node.props["body"] {
