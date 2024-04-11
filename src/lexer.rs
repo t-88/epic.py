@@ -1,14 +1,16 @@
 use std::{fmt::format, vec};
 
-#[derive(Debug)]
+
+#[derive(Debug,PartialEq,Eq,Clone,Copy)]
 pub enum TknKeyword {
     For,
     While,
     If,
     Elseif,
     Else,
+    Let,
 }
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq,Clone,Copy)]
 pub enum TknType {
     Number,
     String,
@@ -37,12 +39,12 @@ pub enum TknType {
     SemiCol,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Tkn {
-    typ: TknType,
-    val: String,
-    line: u64,
-    col: u64,
+    pub typ: TknType,
+    pub val: String,
+    pub line: u64,
+    pub col: u64,
 }
 impl Tkn {
     pub fn new(typ: TknType, val: &str, line: u64, col: u64) -> Tkn {
@@ -63,11 +65,11 @@ pub struct LexerError {
 }
 
 const SKIPPABLES: &[char] = &['\n', '\t', '\r', ' '];
-const KEYWORDS: &[&str] = &["for", "while", "if", "else", "elseif"];
+const KEYWORDS: &[&str] = &["for", "while", "if", "else", "elseif","let"];
 const ARTH_OPS: &[char] = &['+', '-', '*', '/'];
 const SINGLE_CHAR_BOOL_OPS: &[&str] = &[">", "<"];
 const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "=="];
-const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|'];
+const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|' , '='];
 
 pub struct Lexer {
     pub src: String,
@@ -125,6 +127,7 @@ impl Lexer {
             "if" => Some(TknKeyword::If),
             "else" => Some(TknKeyword::Else),
             "elseif" => Some(TknKeyword::Elseif),
+            "let" => Some(TknKeyword::Let),
             _ => None,
         }
     }

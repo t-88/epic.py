@@ -4,14 +4,24 @@
 - , : and
 - .. : spread
 - ; : end of line
+- () : optional
 
 # Op Language Synatx 
+- Program = stmtList;
+- stmtList = stmtList stmt | stmt;
+- stmt = AssigmentExpr;
+
+- AssigmentExpr = Ident , = , {Number , String , Ident} , SemiCol; 
+- VariableDeclaration = LetKeyword , Ident = , {Number , String , Ident} , SemiCol; 
+
 - Ident = letter , char*;
 
 - Keyword = ForKeyword | IfKeyword | WhileKeyword;
 - ForKeyword = "for";
 - IfKeyword = "if";
 - WhileKeyword = "while";
+- LetKeyword = "let";
+
 
 - String = " , char* , "; 
 - Number = digit | digit  , . , digit*;
