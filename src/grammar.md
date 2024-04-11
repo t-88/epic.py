@@ -11,7 +11,8 @@
 - StmtList = StmtList stmt | stmt;
 - Stmt = Expr 
         | IfStmt 
-        | ForStmt;
+        | ForStmt
+        | WhileStmt;
 - Expr =  Number 
         | String
         | AssigmentExpr
@@ -36,6 +37,7 @@
 
 - IfStmt = IfKeyword , ( , Expr , ) , StmtBlock ;
 - ForStmt = ForKeyword , ( , VariableDeclaration , SemiCol , BooleanExpr , SemiCol , Expr  , ) , StmtBlock ;
+- WhileStmt = WhileKeyword , ( , BooleanExpr, ) , StmtBlock ; 
 - StmtBlock = { , StmtList , };
 
 

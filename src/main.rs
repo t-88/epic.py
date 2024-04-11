@@ -7,7 +7,13 @@ mod parser;
 
 fn main() {
     let src: String = String::from("
+        while(true) {
+            i = i + 1;
+            i = i + 2;
 
+            a || b + 68;
+            'nice!';
+        }
     ",
     );
 

@@ -23,7 +23,8 @@ pub enum StmType {
     IfStmt,
     ElseIfStmt,
     ElseStmt,
-    ForStmt
+    ForStmt,
+    WhileStmt,
 }
 #[derive(Debug)]
 pub enum StmtValue {
@@ -116,6 +117,7 @@ impl Parser {
             TknType::Keyword(TknKeyword::Let) => self.prase_variable_declaration(true),
             TknType::Keyword(TknKeyword::If) => self.parse_conditional(),
             TknType::Keyword(TknKeyword::For) => self.parse_for_stmt(),
+            TknType::Keyword(TknKeyword::While) => self.parse_while_stmt(),
             _ => self.parse_variable_assignment(&mut true),
         }
     }
@@ -198,6 +200,24 @@ impl Parser {
             }
         };
     }
+    fn parse_while_stmt(self: &mut Self) -> Stmt {
+        self.expect(TknType::Keyword(TknKeyword::While));
+        self.expect(TknType::OPara);
+        let condition = self.parse_booean_op( &mut false);
+        self.expect(TknType::CPara);
+        let body = self.parse_stmt_block(); 
+
+        return  Stmt {
+            typ: StmType::WhileStmt,
+            props: {
+                let mut props : HashMap<String,StmtValue> = HashMap::new();
+                props.insert("condition".to_string(), StmtValue::Stmt(condition));
+                props.insert("body".to_string(), StmtValue::Stmt(body));
+                props
+            }
+        };
+    }
+
     fn parse_stmt_block(self: &mut Self) -> Stmt {
         self.expect(TknType::OCurl);
 
@@ -607,8 +627,6 @@ impl Parser {
                 }
 
 
-                
-                
 
                 match &node.props["condition"] {
                     StmtValue::Stmt(condition) => {
@@ -634,7 +652,27 @@ impl Parser {
                     _ => unreachable!(),
                 }
 
-            }            
+            }   
+            StmType::WhileStmt => {
+                println!("while stmt");
+
+                match &node.props["condition"] {
+                    StmtValue::Stmt(condition) => {
+                        println!("{}condition", space.repeat((depth + 1) as usize));
+                        self.print_tree(condition, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+
+                match &node.props["body"] {
+                    StmtValue::Stmt(body) => {
+                        println!("{}body", space.repeat((depth + 1) as usize));
+                        self.print_tree(body, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+
+            }                        
             StmType::StmtBlock => {
                 println!("stmt block");
                 match &node.props["body"] {
