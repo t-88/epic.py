@@ -1,7 +1,6 @@
 use std::{fmt::format, vec};
 
-
-#[derive(Debug,PartialEq,Eq,Clone,Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TknKeyword {
     For,
     While,
@@ -9,8 +8,10 @@ pub enum TknKeyword {
     Elseif,
     Else,
     Let,
+    True,
+    False,
 }
-#[derive(Debug,PartialEq,Eq,Clone,Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TknType {
     Number,
     String,
@@ -29,6 +30,7 @@ pub enum TknType {
     Less,
     LessEq,
     Equalily,
+    NotEqualily,
     And,
     Or,
     Plus,
@@ -39,7 +41,7 @@ pub enum TknType {
     SemiCol,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Tkn {
     pub typ: TknType,
     pub val: String,
@@ -65,11 +67,13 @@ pub struct LexerError {
 }
 
 const SKIPPABLES: &[char] = &['\n', '\t', '\r', ' '];
-const KEYWORDS: &[&str] = &["for", "while", "if", "else", "elseif","let"];
+const KEYWORDS: &[&str] = &[
+    "for", "while", "if", "else", "elseif", "let", "true", "false",
+];
 const ARTH_OPS: &[char] = &['+', '-', '*', '/'];
 const SINGLE_CHAR_BOOL_OPS: &[&str] = &[">", "<"];
-const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "=="];
-const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|' , '='];
+const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "==","!="];
+const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '='];
 
 pub struct Lexer {
     pub src: String,
@@ -128,7 +132,9 @@ impl Lexer {
             "else" => Some(TknKeyword::Else),
             "elseif" => Some(TknKeyword::Elseif),
             "let" => Some(TknKeyword::Let),
-            _ => None,
+            "true" => Some(TknKeyword::True),
+            "false" => Some(TknKeyword::False),
+            _ => unreachable!(),
         }
     }
     fn map_arthop(self: &Self, chr: &char) -> Option<TknType> {
@@ -138,7 +144,7 @@ impl Lexer {
             '-' => Some(TknType::Minus),
             '*' => Some(TknType::Mult),
             '/' => Some(TknType::Div),
-            _ => None,
+            _ => unreachable!(),
         }
     }
     fn map_booleanop(self: &Self, word: &str) -> Option<TknType> {
@@ -151,6 +157,7 @@ impl Lexer {
             ">=" => Some(TknType::BiggerEq),
             "<=" => Some(TknType::LessEq),
             "==" => Some(TknType::Equalily),
+            "!=" => Some(TknType::NotEqualily),
             _ => None,
         }
     }
@@ -184,17 +191,15 @@ impl Lexer {
                 } else {
                     self.col += 1;
                 }
-            } else if chr == '/' && !self.is_empty() && self.get() == '/'  {
+            } else if chr == '/' && !self.is_empty() && self.get() == '/' {
                 self.next();
-                while !self.is_empty() && self.get() != '\n'   {
+                while !self.is_empty() && self.get() != '\n' {
                     self.next();
                 }
-            } 
-            
-            else if chr.is_alphabetic() {
+            } else if chr.is_alphabetic() {
                 let mut word: String = String::from(chr);
                 let mut col_offset = 1;
-                while !self.is_empty() && (self.get().is_alphanumeric() || self.get() == '_' ) {
+                while !self.is_empty() && (self.get().is_alphanumeric() || self.get() == '_') {
                     chr = self.next();
                     word.push(chr);
                     col_offset += 1;

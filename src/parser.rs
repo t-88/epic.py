@@ -14,9 +14,11 @@ pub enum StmType {
     StringLiteral,
     IntLiteral,
     FloatLiteral,
+    BooleanLiteral,
     VariableDeclaration,
     VariableAssignment,
     ArthExpr,
+    BooleanExpr,
 }
 #[derive(Debug)]
 pub enum StmtValue {
@@ -24,6 +26,7 @@ pub enum StmtValue {
     Str(String),
     Int(i64),
     Float(f64),
+    Bool(bool),
     Arr(Vec<Stmt>),
 }
 
@@ -154,7 +157,7 @@ impl Parser {
             {
                 let op: String = self.next().val;
                 let rhs: Stmt = self.parse_arth_op_mult(&mut false);
-                stmt =  Stmt {
+                stmt = Stmt {
                     typ: StmType::ArthExpr,
                     props: {
                         let mut props: HashMap<String, StmtValue> = HashMap::new();
@@ -165,19 +168,17 @@ impl Parser {
                     },
                 };
             }
-
         }
 
         if *expect_semi {
             *expect_semi = false;
-            self.expect(TknType::SemiCol)
+            self.expect(TknType::SemiCol);
         }
-
 
         return stmt;
     }
     fn parse_arth_op_mult(self: &mut Self, expect_semi: &mut bool) -> Stmt {
-        let mut stmt: Stmt = self.parse_literal();
+        let mut stmt: Stmt = self.parse_booean_op(&mut false);
 
         if !self.is_empty(0)
             && (self.get(0).typ == TknType::Mult || self.get(0).typ == TknType::Div)
@@ -186,9 +187,9 @@ impl Parser {
                 && (self.get(0).typ == TknType::Mult || self.get(0).typ == TknType::Div)
             {
                 let op: String = self.next().val;
-                let rhs : Stmt = self.parse_literal();
-                
-                stmt =  Stmt {
+                let rhs: Stmt = self.parse_booean_op(&mut false);
+
+                stmt = Stmt {
                     typ: StmType::ArthExpr,
                     props: {
                         let mut props: HashMap<String, StmtValue> = HashMap::new();
@@ -204,8 +205,71 @@ impl Parser {
         if *expect_semi {
             *expect_semi = false;
             self.expect(TknType::SemiCol)
-        }        
+        }
         return stmt;
+    }
+
+    fn parse_booean_op(self: &mut Self, expect_semi: &mut bool) -> Stmt {
+        let mut stmt = self.parse_grouping();
+
+        if !self.is_empty(0)
+            && [
+                TknType::AndBool,
+                TknType::OrBool,
+                TknType::Bigger,
+                TknType::BiggerEq,
+                TknType::Less,
+                TknType::LessEq,
+                TknType::Equalily,
+                TknType::NotEqualily,
+            ]
+            .contains(&self.get(0).typ)
+        {
+            while !self.is_empty(0)
+                && [
+                    TknType::AndBool,
+                    TknType::OrBool,
+                    TknType::Bigger,
+                    TknType::BiggerEq,
+                    TknType::Less,
+                    TknType::LessEq,
+                    TknType::Equalily,
+                    TknType::NotEqualily,
+                ]
+                .contains(&self.get(0).typ)
+            {
+                let op: String = self.next().val;
+                let rhs: Stmt = self.parse_grouping();
+
+                stmt = Stmt {
+                    typ: StmType::BooleanExpr,
+                    props: {
+                        let mut props: HashMap<String, StmtValue> = HashMap::new();
+                        props.insert(String::from("op"), StmtValue::Str(op));
+                        props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
+                        props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                        props
+                    },
+                };
+            }
+        }
+
+        if *expect_semi {
+            *expect_semi = false;
+            self.expect(TknType::SemiCol);
+        }
+        return stmt;
+    }
+
+    fn parse_grouping(self: &mut Self) -> Stmt {
+        if self.get(0).typ == TknType::OPara {
+            self.next();
+            let stmt: Stmt = self.parse_arth_op_add(&mut false);
+            self.expect(TknType::CPara);
+            return stmt;
+        }
+
+        return self.parse_literal();
     }
 
     fn parse_literal(self: &mut Self) -> Stmt {
@@ -247,6 +311,21 @@ impl Parser {
                     props: props,
                 };
             }
+            TknType::Keyword(TknKeyword::True) => {
+                props.insert(String::from("val"), StmtValue::Bool(true));
+                Stmt {
+                    typ: StmType::BooleanLiteral,
+                    props: props,
+                }
+            }
+            TknType::Keyword(TknKeyword::False) => {
+                props.insert(String::from("val"), StmtValue::Bool(false));
+                Stmt {
+                    typ: StmType::BooleanLiteral,
+                    props: props,
+                }
+            }
+
             _ => {
                 self.push_err(format!(
                     "{}:{} Unexpected literal {:?} ",
@@ -279,6 +358,7 @@ impl Parser {
             StmType::FloatLiteral => println!("float: {:?}", node.props["val"]),
             StmType::IntLiteral => println!("int: {:?}", node.props["val"]),
             StmType::StringLiteral => println!("string: {:?}", node.props["val"]),
+            StmType::BooleanLiteral => println!("boolean: {:?}", node.props["val"]),
             StmType::Ident => println!("ident: {:?}", node.props["name"]),
             StmType::VariableAssignment => {
                 println!("variable assignment");
@@ -318,7 +398,23 @@ impl Parser {
                     _ => unreachable!(),
                 };
             }
-            _ => unreachable!(),
+            StmType::BooleanExpr => {
+                print!("boolean expr");
+                match &node.props["op"] {
+                    StmtValue::Str(op) => println!(" {}", op),
+                    _ => unreachable!(),
+                };
+
+                match &node.props["lhs"] {
+                    StmtValue::Stmt(lhs) => self.print_tree(&lhs, depth + 1),
+                    _ => unreachable!(),
+                };
+                match &node.props["rhs"] {
+                    StmtValue::Stmt(rhs) => self.print_tree(&rhs, depth + 1),
+                    _ => unreachable!(),
+                };
+            }
+            _ => unimplemented!(),
         }
     }
 }

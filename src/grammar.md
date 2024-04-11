@@ -7,22 +7,40 @@
 - () : optional
 
 # Op Language Synatx 
-- Program = stmtList;
-- stmtList = stmtList stmt | stmt;
-- stmt = AssigmentExpr;
+- Program = StmtList;
+- StmtList = StmtList stmt | stmt;
+- stmt = AssigmentExpr | IfStmt;
 
 - AssigmentExpr = Ident , = , {Number , String , Ident} , SemiCol; 
 - VariableDeclaration = LetKeyword , Ident = , {Number , String , Ident} , SemiCol; 
 - ArthExpr =  Number , ArthOp , Number 
-            | ArthExpr  , ArthOp , Number;
+            | ArthExpr  , ArthOp , Number
+            | (ArthExpr);
+
+- BooleanExpr =   BooleanExpr  , BooleanOp , BooleanExpr
+                | (BooleanExpr)
+                | ArthExpr
+                | Ident
+                | Number
+                | TrueKeywrod 
+                | FalseKeyword; 
+
+
+- IfStmt = IfKeyword , ( , Expr , ) , StmtBlock;
+- StmtBlock = { , StmtList , };
+- Expr =  Number 
+        | String
+        | ArthExpr;
+
 
 - Ident = letter , char*;
-
 - Keyword = ForKeyword | IfKeyword | WhileKeyword;
 - ForKeyword = "for";
 - IfKeyword = "if";
 - WhileKeyword = "while";
 - LetKeyword = "let";
+- TrueKeyword = "true";
+- FalseKeyword = "false";
 
 
 - String = " , char* , "; 

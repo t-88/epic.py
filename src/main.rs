@@ -7,9 +7,7 @@ mod parser;
 
 fn main() {
     let src: String = String::from("
-    a = 5 + 5;
-    let b = 5 * 5 + 2 / 3 - 1;
-",);
+    ");
 
     let mut lexer: lexer::Lexer = lexer::Lexer::new();
     lexer.tokenize(&src);
