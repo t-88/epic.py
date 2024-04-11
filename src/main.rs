@@ -6,8 +6,23 @@ mod lexer;
 mod parser;
 
 fn main() {
-    let src: String = String::from("
-    ");
+    let src: String = String::from(
+        "
+        if(true) {
+            1 + 2;
+        } elseif(1 > 5) {
+            3 + 4;
+        }
+        elseif(a && b) {
+            5 + 6;
+        }
+        elseif(true) {
+            7 + 8;
+        } else {
+            9 + 10;
+        }          
+    ",
+    );
 
     let mut lexer: lexer::Lexer = lexer::Lexer::new();
     lexer.tokenize(&src);

@@ -39,6 +39,7 @@ pub enum TknType {
     Div,
     Equal,
     SemiCol,
+    EOF,
 }
 
 #[derive(Debug, Clone)]
@@ -275,5 +276,15 @@ impl Lexer {
                 self.push_err(format!("Unexpected Token '{}'", chr));
             }
         }
+    
+        self.tknz.push(Tkn {
+            col: self.col,
+            line: self.line,
+            typ: TknType::EOF,
+            val: "".to_string(),
+        });
+        
     }
+
+
 }
