@@ -13,6 +13,8 @@
 
 - AssigmentExpr = Ident , = , {Number , String , Ident} , SemiCol; 
 - VariableDeclaration = LetKeyword , Ident = , {Number , String , Ident} , SemiCol; 
+- ArthExpr =  Number , ArthOp , Number 
+            | ArthExpr  , ArthOp , Number;
 
 - Ident = letter , char*;
 

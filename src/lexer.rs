@@ -184,10 +184,17 @@ impl Lexer {
                 } else {
                     self.col += 1;
                 }
-            } else if chr.is_alphabetic() {
+            } else if chr == '/' && !self.is_empty() && self.get() == '/'  {
+                self.next();
+                while !self.is_empty() && self.get() != '\n'   {
+                    self.next();
+                }
+            } 
+            
+            else if chr.is_alphabetic() {
                 let mut word: String = String::from(chr);
                 let mut col_offset = 1;
-                while !self.is_empty() && self.get().is_alphanumeric() {
+                while !self.is_empty() && (self.get().is_alphanumeric() || self.get() == '_' ) {
                     chr = self.next();
                     word.push(chr);
                     col_offset += 1;

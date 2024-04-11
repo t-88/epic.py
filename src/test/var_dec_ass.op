@@ -1,0 +1,8 @@
+let var_a = 5;
+let var_b = 0.69;
+let var_c = \"nice!\";
+let var_d = 'very nice!';
+
+var_a = 420; 
+var_a = '420'; 
+var_a = \"420\"; 
