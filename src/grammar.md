@@ -34,6 +34,8 @@
                 | TrueKeywrod 
                 | FalseKeyword; 
 
+- Arr = [ + (Iden , Comma)*  + ];
+
 
 
 - StmtBlock = { , StmtList , };
@@ -67,6 +69,7 @@
 - BooleanOp = "&&" | "||" | ">" | "<" | ">=" | "<=" | "==";
 - SemiCol = ";";
 - Comma = ",";
+- Colon = ":";
 - Equal = "=";
 - digit = 0 | .. | 9;
 - char = letter | digit;

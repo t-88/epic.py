@@ -1,0 +1,16 @@
+a = {
+    a : {
+        urmom : mama
+    },
+    b : 2,
+    c : 3,
+    d : 4
+};
+let b = {};
+func main(b = {key1 : 1,key2 : 'asb'}) {
+    return b;
+}
+main({
+    key1 : 'ur mom',
+    key2 : 69
+});

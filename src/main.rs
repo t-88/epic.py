@@ -7,11 +7,6 @@ mod parser;
 
 fn main() {
     let src: String = String::from("
-        func main() {
-            let title = \"foo and stuff\n\";
-            printf(title);
-            return 0;
-        }
     ");
 
     let mut lexer: lexer::Lexer = lexer::Lexer::new();

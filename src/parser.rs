@@ -30,6 +30,8 @@ pub enum StmType {
     ArgList,
     Return,
     Empty,
+    Arr,
+    HashMap
 }
 #[derive(Debug)]
 pub enum StmtValue {
@@ -39,6 +41,7 @@ pub enum StmtValue {
     Float(f64),
     Bool(bool),
     Arr(Vec<Stmt>),
+    HashMap(Vec<Vec<Stmt>>),
 }
 
 #[derive(Debug)]
@@ -530,8 +533,85 @@ impl Parser {
             return stmt;
         }
 
+        return self.parse_array_notation();
+    }
+    
+    fn parse_array_notation(self: &mut Self) -> Stmt {
+        if self.get(0).typ == TknType::OSqr {
+            self.next();
+
+
+            let mut vals: Vec<Stmt> = vec![];
+            if self.get(0).typ != TknType::CSqr {
+                loop {
+                    vals.push(self.parse_arth_op_add(&mut false));
+                    if self.get(0).typ == TknType::Comma {
+                        self.next();
+                    } else {
+                        break;
+                    }
+                }
+            }
+            self.expect(TknType::CSqr);
+
+            return  Stmt {
+                typ: StmType::Arr,
+                props: {
+                    let mut props: HashMap<String,StmtValue> = HashMap::new();
+                    props.insert("vals".to_string(), StmtValue::Arr(vals));
+                    props
+                }
+
+            };
+
+        }
+
+        return self.parse_hashtable_notation();
+    }
+    
+
+    fn parse_hashtable_notation(self: &mut Self) -> Stmt {
+        if self.get(0).typ == TknType::OCurl {
+            self.next();
+
+
+            let mut vals: Vec<Vec<Stmt>> = vec![];
+            if self.get(0).typ != TknType::CCurl {
+                loop {
+                    let mut elem: Vec<Stmt> = vec![];
+                    elem.push(self.parse_arth_op_add(&mut false));
+                    
+                    self.expect(TknType::Colon);
+                    elem.push(self.parse_arth_op_add(&mut false));
+                    
+
+                    vals.push(elem);
+
+                    if self.get(0).typ == TknType::Comma {
+                        self.next();
+                    } else {
+                        break;
+                    }
+                }
+            }
+            self.expect(TknType::CCurl);
+
+            return  Stmt {
+                typ: StmType::HashMap,
+                props: {
+                    let mut props: HashMap<String,StmtValue> = HashMap::new();
+                    props.insert("vals".to_string(), StmtValue::HashMap(vals));
+                    props
+                }
+
+            };
+
+        }
+
         return self.parse_literal();
     }
+    
+
     fn parse_literal(self: &mut Self) -> Stmt {
         let tkn: Tkn = self.next();
         let mut props: HashMap<String, StmtValue> = HashMap::new();
@@ -858,7 +938,41 @@ impl Parser {
                         _ => unreachable!(),
                     }                
                 }
-            }            
+            }   
+            StmType::Arr => {
+                println!("arr");
+                
+                match &node.props["vals"] {
+                    StmtValue::Arr(vals) => {
+                        if vals.len() == 0 {
+                            println!("{}empty",space.repeat((depth + 1) as usize ));
+                        } else {
+                            for val in vals {
+                                self.print_tree(val, depth + 1);
+                            }
+                        }
+                    }
+                    _ => unreachable!(),
+                }                
+            } 
+            StmType::HashMap => {
+                println!("hashmap");
+                
+                match &node.props["vals"] {
+                    StmtValue::HashMap(vals) => {
+                        if vals.len() == 0 {
+                            println!("{}empty",space.repeat((depth + 1) as usize ));
+                        } else {
+                            for val in vals {
+                                self.print_tree(&val[0], depth + 1);
+                                self.print_tree(&val[1], depth + 2);
+
+                            }
+                        }
+                    }
+                    _ => unreachable!(),
+                }                
+            }                                    
             StmType::StmtBlock => {
                 println!("stmt block");
                 match &node.props["body"] {
