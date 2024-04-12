@@ -7,15 +7,12 @@ mod parser;
 
 fn main() {
     let src: String = String::from("
-        while(true) {
-            i = i + 1;
-            i = i + 2;
-
-            a || b + 68;
-            'nice!';
+        func hello(a = 15, b , c = 'ur mom', d = 6) {
+            'hello';
+            return false;
         }
-    ",
-    );
+    
+    ");
 
     let mut lexer: lexer::Lexer = lexer::Lexer::new();
     lexer.tokenize(&src);

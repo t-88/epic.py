@@ -5,6 +5,7 @@
 - .. : spread
 - ; : end of line
 - () : optional
+- $  : empty , nothing
 
 # Op Language Synatx 
 - Program = StmtList;
@@ -35,27 +36,35 @@
 
 
 
+- StmtBlock = { , StmtList , };
 - IfStmt = IfKeyword , ( , Expr , ) , StmtBlock ;
 - ForStmt = ForKeyword , ( , VariableDeclaration , SemiCol , BooleanExpr , SemiCol , Expr  , ) , StmtBlock ;
 - WhileStmt = WhileKeyword , ( , BooleanExpr, ) , StmtBlock ; 
-- StmtBlock = { , StmtList , };
+- FuncDeclaration = FuncKeyword , Ident , (  , Arglist , ) , StmtBlock;
+- Arglist = | Arg , (Comma , Arglist)*
+- Arg =   RequiredArg
+        | OptionalArg;
+- RequiredArg = Iden; 
+- OptionalArg = AssigmentExpr; 
+
 
 
 - Ident = letter , char*;
-- Keyword = ForKeyword | IfKeyword | WhileKeyword;
+- Keyword = ForKeyword | IfKeyword | WhileKeyword | FuncKeyword | TrueKeyword | FalseKeyword;
 - ForKeyword = "for";
 - IfKeyword = "if";
 - WhileKeyword = "while";
 - LetKeyword = "let";
 - TrueKeyword = "true";
 - FalseKeyword = "false";
-
+- FuncKeyword = "func";
 
 - String = " , char* , "; 
 - Number = digit | digit  , . , digit*;
 - ArhOp = "+" | "-" | "*" | "/";
 - BooleanOp = "&&" | "||" | ">" | "<" | ">=" | "<=" | "==";
 - SemiCol = ";";
+- Comma = ",";
 - Equal = "=";
 - digit = 0 | .. | 9;
 - char = letter | digit;

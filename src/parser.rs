@@ -25,6 +25,10 @@ pub enum StmType {
     ElseStmt,
     ForStmt,
     WhileStmt,
+    FuncDeclaration,
+    ArgList,
+    Return,
+    Empty,
 }
 #[derive(Debug)]
 pub enum StmtValue {
@@ -40,6 +44,15 @@ pub enum StmtValue {
 pub struct Stmt {
     typ: StmType,
     props: HashMap<String, StmtValue>,
+}
+
+impl Stmt {
+    fn new() -> Self {
+        Stmt {
+            typ: StmType::Empty,
+            props: HashMap::new(),
+        }
+    }
 }
 
 pub struct Parser {
@@ -81,8 +94,8 @@ impl Parser {
         let tkn: Tkn = self.get(0);
         if (tkn.typ != typ) {
             self.push_err(format!(
-                "{}:{} Unexpcted tkn, expected {:?} but got {:?}",
-                tkn.line, tkn.col, typ, tkn.typ
+                "{}:{} Unexpcted tkn, expected {:?} but got {:?} with val '{}'",
+                tkn.line, tkn.col, typ, tkn.typ, tkn.val
             ));
             println!("{}", self.errs.last().unwrap().msg);
             todo!();
@@ -118,6 +131,8 @@ impl Parser {
             TknType::Keyword(TknKeyword::If) => self.parse_conditional(),
             TknType::Keyword(TknKeyword::For) => self.parse_for_stmt(),
             TknType::Keyword(TknKeyword::While) => self.parse_while_stmt(),
+            TknType::Keyword(TknKeyword::Func) => self.parse_func_declaration_stmt(),
+            TknType::Keyword(TknKeyword::Return) => self.parse_return_stmt(),
             _ => self.parse_variable_assignment(&mut true),
         }
     }
@@ -213,6 +228,79 @@ impl Parser {
                 let mut props : HashMap<String,StmtValue> = HashMap::new();
                 props.insert("condition".to_string(), StmtValue::Stmt(condition));
                 props.insert("body".to_string(), StmtValue::Stmt(body));
+                props
+            }
+        };
+    }
+    fn parse_func_declaration_stmt(self: &mut Self) -> Stmt {
+        self.expect(TknType::Keyword(TknKeyword::Func));
+        let name = self.parse_literal();
+        self.expect(TknType::OPara);
+
+
+        let mut arglist_exist = false;
+
+        let mut arglist: Stmt = Stmt::new();
+        if(self.get(0).typ != TknType::CPara) {
+            arglist_exist = true;
+            arglist = self.parse_arglist();
+        }
+        self.expect(TknType::CPara);
+        let body = self.parse_stmt_block(); 
+
+        return  Stmt {
+            typ: StmType::FuncDeclaration,
+            props: {
+                let mut props : HashMap<String,StmtValue> = HashMap::new();
+                props.insert("name".to_string(), StmtValue::Stmt(name));
+                props.insert("body".to_string(), StmtValue::Stmt(body));
+                if arglist_exist { props.insert("arglist".to_string(), StmtValue::Stmt(arglist)); };
+                props
+            }
+        };        
+    }
+    fn parse_arglist(self: &mut Self) -> Stmt {
+
+        let mut args : Vec<Stmt> = vec![];
+
+        loop {
+            args.push(
+                self.parse_variable_assignment(&mut false),
+            );
+            if(self.get(0).typ == TknType::Comma) {
+                self.next();
+            } else {
+                break;
+            }
+        }
+
+        return  Stmt {
+            typ: StmType::ArgList,
+            props: {
+                let mut props : HashMap<String,StmtValue> = HashMap::new();
+                props.insert("list".to_string(), StmtValue::Arr(args));
+                props
+            }
+        };  
+    }
+
+    fn parse_return_stmt(self: &mut Self) -> Stmt {
+        self.expect(TknType::Keyword(TknKeyword::Return));
+
+
+
+        let mut val_exists = false;
+        let mut val = Stmt::new();
+        if self.get(0).typ != TknType::SemiCol {
+            val  = self.parse_arth_op_add(&mut false);
+            val_exists=  true;
+        }
+        self.expect(TknType::SemiCol);
+        return  Stmt {
+            typ: StmType::Return,
+            props: { 
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                if val_exists { props.insert("val".to_string(), StmtValue::Stmt(val)); }
                 props
             }
         };
@@ -672,7 +760,58 @@ impl Parser {
                     _ => unreachable!(),
                 }
 
-            }                        
+            }  
+
+            StmType::FuncDeclaration => {
+                println!("func decl");
+                match &node.props["name"] {
+                    StmtValue::Stmt(name) => {
+                        println!("{}name", space.repeat((depth + 1) as usize));
+                        self.print_tree(name, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+                if node.props.contains_key("arglist") {
+                    match &node.props["arglist"] {
+                        StmtValue::Stmt(arglist) => {
+                            self.print_tree(arglist, depth + 1);
+                        }
+                        _ => unreachable!(),
+                    }                
+                }
+                match &node.props["body"] {
+                    StmtValue::Stmt(body) => {
+                        println!("{}body", space.repeat((depth + 1) as usize));
+                        self.print_tree(body, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }                
+            }
+
+            StmType::ArgList => {
+                match &node.props["list"] {
+                    StmtValue::Arr(list) => {
+                        println!("arglist");
+                        for stmt in list {
+                            self.print_tree(stmt, depth + 1);
+                        }
+
+                    }
+                    _ => unreachable!(),
+                }                
+            }
+            StmType::Return => {
+                println!("return stmt");
+                
+                if node.props.contains_key("val") {
+                    match &node.props["val"] {
+                        StmtValue::Stmt(val) => {
+                            self.print_tree(val, depth + 1);
+                        }
+                        _ => unreachable!(),
+                    }                
+                }
+            }            
             StmType::StmtBlock => {
                 println!("stmt block");
                 match &node.props["body"] {
@@ -688,7 +827,6 @@ impl Parser {
                     _ => unreachable!(),
                 }
             }
-
             _ => unimplemented!(),
         }
     }

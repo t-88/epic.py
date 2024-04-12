@@ -8,8 +8,10 @@ pub enum TknKeyword {
     Elseif,
     Else,
     Let,
+    Func,
     True,
     False,
+    Return,
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TknType {
@@ -38,6 +40,7 @@ pub enum TknType {
     Mult,
     Div,
     Equal,
+    Comma,
     SemiCol,
     EOF,
 }
@@ -69,12 +72,12 @@ pub struct LexerError {
 
 const SKIPPABLES: &[char] = &['\n', '\t', '\r', ' '];
 const KEYWORDS: &[&str] = &[
-    "for", "while", "if", "else", "elseif", "let", "true", "false",
+    "for", "while", "if", "else", "elseif", "let", "true", "false" , "func", "return",
 ];
 const ARTH_OPS: &[char] = &['+', '-', '*', '/'];
 const SINGLE_CHAR_BOOL_OPS: &[&str] = &[">", "<"];
 const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "==","!="];
-const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '='];
+const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '=',','];
 
 pub struct Lexer {
     pub src: String,
@@ -135,6 +138,8 @@ impl Lexer {
             "let" => Some(TknKeyword::Let),
             "true" => Some(TknKeyword::True),
             "false" => Some(TknKeyword::False),
+            "func" => Some(TknKeyword::Func),
+            "return" => Some(TknKeyword::Return),
             _ => unreachable!(),
         }
     }
@@ -174,6 +179,7 @@ impl Lexer {
             '}' => Some(TknType::CCurl),
             ']' => Some(TknType::OSqr),
             '[' => Some(TknType::CSqr),
+            ',' => Some(TknType::Comma),
             _ => None,
         }
     }
