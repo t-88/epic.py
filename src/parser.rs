@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::format, vec};
+use std::{any::Any, collections::HashMap, fmt::format, vec};
 
 use crate::lexer::*;
 
@@ -6,7 +6,7 @@ struct ParserError {
     pub msg: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq, Eq)]
 pub enum StmType {
     Program,
     StmtBlock,
@@ -44,10 +44,11 @@ pub enum StmtValue {
     HashMap(Vec<Vec<Stmt>>),
 }
 
+
 #[derive(Debug)]
 pub struct Stmt {
-    typ: StmType,
-    props: HashMap<String, StmtValue>,
+    pub typ: StmType,
+    pub props: HashMap<String, StmtValue>,
 }
 
 impl Stmt {
@@ -941,7 +942,6 @@ impl Parser {
             }   
             StmType::Arr => {
                 println!("arr");
-                
                 match &node.props["vals"] {
                     StmtValue::Arr(vals) => {
                         if vals.len() == 0 {
