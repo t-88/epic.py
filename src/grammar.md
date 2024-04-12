@@ -41,6 +41,8 @@
 - ForStmt = ForKeyword , ( , VariableDeclaration , SemiCol , BooleanExpr , SemiCol , Expr  , ) , StmtBlock ;
 - WhileStmt = WhileKeyword , ( , BooleanExpr, ) , StmtBlock ; 
 - FuncDeclaration = FuncKeyword , Ident , (  , Arglist , ) , StmtBlock;
+- FuncCallStmt = Ident , ( , Arglist , ) ;  
+
 - Arglist = | Arg , (Comma , Arglist)*
 - Arg =   RequiredArg
         | OptionalArg;

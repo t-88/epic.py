@@ -26,6 +26,7 @@ pub enum StmType {
     ForStmt,
     WhileStmt,
     FuncDeclaration,
+    FuncCall,
     ArgList,
     Return,
     Empty,
@@ -133,7 +134,7 @@ impl Parser {
             TknType::Keyword(TknKeyword::While) => self.parse_while_stmt(),
             TknType::Keyword(TknKeyword::Func) => self.parse_func_declaration_stmt(),
             TknType::Keyword(TknKeyword::Return) => self.parse_return_stmt(),
-            _ => self.parse_variable_assignment(&mut true),
+            _ => self.parse_fun_call(&mut true),
         }
     }
     fn parse_conditional(self: &mut Self) -> Stmt {
@@ -283,7 +284,6 @@ impl Parser {
             }
         };  
     }
-
     fn parse_return_stmt(self: &mut Self) -> Stmt {
         self.expect(TknType::Keyword(TknKeyword::Return));
 
@@ -305,7 +305,6 @@ impl Parser {
             }
         };
     }
-
     fn parse_stmt_block(self: &mut Self) -> Stmt {
         self.expect(TknType::OCurl);
 
@@ -328,7 +327,6 @@ impl Parser {
 
         self.expect(TknType::CCurl);
     }
-
     fn prase_variable_declaration(self: &mut Self,expect_semi: bool) -> Stmt {
         self.expect(TknType::Keyword(TknKeyword::Let));
 
@@ -351,6 +349,40 @@ impl Parser {
             },
         };
     }
+
+
+
+    fn parse_fun_call(self: &mut Self,expect_semi: &mut bool) -> Stmt {
+        if self.get(0).typ == TknType::Ident && !self.is_empty(0) && self.get(1).typ == TknType::OPara {
+            let name = self.parse_literal();
+            self.expect(TknType::OPara);
+            
+            let mut arglist_exist = false;
+            let mut arglist = Stmt::new();
+            if self.get(0).typ != TknType::CPara {
+                arglist = self.parse_arglist();
+                arglist_exist = true;
+            }
+            self.expect(TknType::CPara);
+
+            if *expect_semi {
+                *expect_semi = false;
+                self.expect(TknType::SemiCol);
+            }
+
+            return Stmt {
+                typ: StmType::FuncCall,
+                props: {
+                    let mut props: HashMap<String, StmtValue> = HashMap::new();
+                    props.insert("name".to_string(), StmtValue::Stmt(name));
+                    if arglist_exist { props.insert("arglist".to_string(), StmtValue::Stmt(arglist)); }
+                    props
+                }
+            };
+
+        }
+        return self.parse_variable_assignment(expect_semi);
+    }
     fn parse_variable_assignment(self: &mut Self,expect_semi: &mut bool) -> Stmt {
         if self.get(0).typ == TknType::Ident
             && !self.is_empty(1)
@@ -358,7 +390,7 @@ impl Parser {
         {
             let ident: Stmt = self.parse_literal();
             self.expect(TknType::Equal);
-            let val = self.parse_arth_op_add(&mut false);
+            let val = self.parse_fun_call(&mut false);
 
             if(*expect_semi) {
                 *expect_semi = false;
@@ -377,7 +409,6 @@ impl Parser {
 
         return self.parse_arth_op_add(expect_semi);
     }
-
     fn parse_arth_op_add(self: &mut Self, expect_semi: &mut bool) -> Stmt {
         let mut stmt: Stmt = self.parse_arth_op_mult(&mut false);
 
@@ -440,7 +471,6 @@ impl Parser {
         }
         return stmt;
     }
-
     fn parse_booean_op(self: &mut Self, expect_semi: &mut bool) -> Stmt {
         let mut stmt = self.parse_grouping();
 
@@ -492,7 +522,6 @@ impl Parser {
         }
         return stmt;
     }
-
     fn parse_grouping(self: &mut Self) -> Stmt {
         if self.get(0).typ == TknType::OPara {
             self.next();
@@ -503,7 +532,6 @@ impl Parser {
 
         return self.parse_literal();
     }
-
     fn parse_literal(self: &mut Self) -> Stmt {
         let tkn: Tkn = self.next();
         let mut props: HashMap<String, StmtValue> = HashMap::new();
@@ -787,6 +815,25 @@ impl Parser {
                     _ => unreachable!(),
                 }                
             }
+
+            StmType::FuncCall => {
+                println!("func call");
+                match &node.props["name"] {
+                    StmtValue::Stmt(name) => {
+                        println!("{}name", space.repeat((depth + 1) as usize));
+                        self.print_tree(name, depth + 2);
+                    }
+                    _ => unreachable!(),
+                }
+                if node.props.contains_key("arglist") {
+                    match &node.props["arglist"] {
+                        StmtValue::Stmt(arglist) => {
+                            self.print_tree(arglist, depth + 1);
+                        }
+                        _ => unreachable!(),
+                    }                
+                }
+            }            
 
             StmType::ArgList => {
                 match &node.props["list"] {

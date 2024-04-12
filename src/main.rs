@@ -7,11 +7,11 @@ mod parser;
 
 fn main() {
     let src: String = String::from("
-        func hello(a = 15, b , c = 'ur mom', d = 6) {
-            'hello';
-            return false;
+        func main() {
+            let title = \"foo and stuff\n\";
+            printf(title);
+            return 0;
         }
-    
     ");
 
     let mut lexer: lexer::Lexer = lexer::Lexer::new();
