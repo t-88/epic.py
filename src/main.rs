@@ -10,7 +10,9 @@ use parser::*;
 
 
 fn main() {
-    let src: String = String::from("");
+    let src: String = String::from("
+        let a = 2;
+    ");
 
     let mut lexer: Lexer = Lexer::new();
     lexer.tokenize(&src);
@@ -24,7 +26,17 @@ fn main() {
 
     let mut parser: Parser = Parser::new();
     parser.parse(&src);
+    if (parser.errs.len() > 0) {
+        println!("Parser found {} errs", parser.errs.len());
+        for msg in parser.errs {
+            println!("{}", msg);
+        }
+        return;
+    }
+    
     parser.print_tree(&parser.program, 0);
+
+
 
 
 

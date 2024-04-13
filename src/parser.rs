@@ -2,10 +2,6 @@ use std::{any::Any, collections::HashMap, fmt::format, vec};
 
 use crate::lexer::*;
 
-struct ParserError {
-    pub msg: String,
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum StmType {
     Program,
@@ -58,6 +54,12 @@ impl Stmt {
             props: HashMap::new(),
         }
     }
+    fn from(typ: StmType, props: HashMap<String, StmtValue>) -> Self {
+        Stmt {
+            typ: typ,
+            props: props,
+        }
+    }
 }
 
 #[macro_export]
@@ -75,10 +77,30 @@ macro_rules! get_stmt_typ {
         }
     };
 }
+macro_rules! panic_check {
+    ($value: expr,$out: expr) => {
+        match $value {
+            Ok(x) => {
+                $out = x;
+            }
+            Err(err) => return Err(err),
+        }
+    };
+    ($value: expr) => {
+        match $value {
+            Ok(x) => {}
+            Err(err) => return Err(err),
+        }
+    };
+}
+
+struct SyntaxError {
+    msg: String,
+}
 
 pub struct Parser {
     pub program: Stmt,
-    pub errs: Vec<ParserError>,
+    pub errs: Vec<String>,
     lexer: Lexer,
     idx: u64,
 }
@@ -98,7 +120,7 @@ impl Parser {
         };
     }
     fn push_err(self: &mut Self, msg: String) {
-        self.errs.push(ParserError { msg: msg });
+        self.errs.push(msg);
     }
     fn is_empty(self: &Self, offset: u64) -> bool {
         return self.idx + offset >= self.lexer.tknz.len() as u64;
@@ -111,17 +133,23 @@ impl Parser {
         self.idx += 1;
         tkn
     }
-    fn expect(self: &mut Self, typ: TknType) {
+    fn expect(self: &mut Self, typ: TknType) -> Result<Tkn, SyntaxError> {
         let tkn: Tkn = self.get(0);
         if (tkn.typ != typ) {
             self.push_err(format!(
                 "{}:{} Unexpcted tkn, expected {:?} but got {:?} with val '{}'",
                 tkn.line, tkn.col, typ, tkn.typ, tkn.val
             ));
-            println!("{}", self.errs.last().unwrap().msg);
+            println!("{}", self.errs.last().unwrap());
             todo!();
         }
+        let val = self.get(0);
         self.next();
+        return Ok(val);
+    }
+
+    fn panic_mode(self: &mut Self) {
+        panic!("PANIC!!");
     }
 }
 
@@ -132,8 +160,11 @@ impl Parser {
 
         let mut body: Vec<Stmt> = vec![];
         while self.get(0).typ != TknType::EOF {
-            let stmt: Stmt = self.parse_statement();
-            body.push(stmt);
+            let out = self.parse_statement();
+            match out {
+                Ok(stmt) => body.push(stmt),
+                Err(e) => self.panic_mode(),
+            }
         }
 
         body.push(Stmt {
@@ -146,7 +177,7 @@ impl Parser {
             .insert("body".to_string(), StmtValue::Arr(body));
     }
 
-    fn parse_statement(self: &mut Self) -> Stmt {
+    fn parse_statement(self: &mut Self) -> Result<Stmt, SyntaxError> {
         match self.get(0).typ {
             TknType::Keyword(TknKeyword::Let) => self.prase_variable_declaration(true),
             TknType::Keyword(TknKeyword::If) => self.parse_conditional(),
@@ -157,139 +188,133 @@ impl Parser {
             _ => self.parse_fun_call(&mut true),
         }
     }
-    fn parse_conditional(self: &mut Self) -> Stmt {
-        self.expect(TknType::Keyword(TknKeyword::If));
-        self.expect(TknType::OPara);
-        let condtion: Stmt = self.parse_booean_op(&mut false);
-        self.expect(TknType::CPara);
-
-        let block: Stmt = self.parse_stmt_block();
-
+    fn parse_conditional(self: &mut Self) -> Result<Stmt, SyntaxError> {
+        let mut condtion: Stmt;
+        let mut block: Stmt;
         let mut else_ifs: Vec<Stmt> = vec![];
-        while !self.is_empty(0) && self.get(0).typ == TknType::Keyword(TknKeyword::Elseif) {
-            self.next();
-            self.expect(TknType::OPara);
-            let condtion: Stmt = self.parse_booean_op(&mut false);
-            self.expect(TknType::CPara);
-            let block: Stmt = self.parse_stmt_block();
+        let mut elses: Stmt = Stmt::new();
 
-            else_ifs.push(Stmt {
-                typ: StmType::ElseIfStmt,
-                props: {
-                    let mut props: HashMap<String, StmtValue> = HashMap::new();
-                    props.insert("condition".to_string(), StmtValue::Stmt(condtion));
-                    props.insert("body".to_string(), StmtValue::Stmt(block));
-                    props
-                },
-            });
+        panic_check!(self.expect(TknType::Keyword(TknKeyword::If)));
+        panic_check!(self.expect(TknType::OPara));
+        panic_check!(self.parse_boolean_op(&mut false), condtion);
+        panic_check!(self.expect(TknType::CPara));
+        panic_check!(self.parse_stmt_block(), block);
+
+        while !self.is_empty(0) && self.get(0).typ == TknType::Keyword(TknKeyword::Elseif) {
+            let condtion: Stmt;
+            let block: Stmt;
+
+            self.next();
+            panic_check!(self.expect(TknType::OPara));
+            panic_check!(self.parse_boolean_op(&mut false), condtion);
+            panic_check!(self.expect(TknType::CPara));
+            panic_check!(self.parse_stmt_block(), block);
+
+            else_ifs.push(Stmt::from(StmType::ElseIfStmt, {
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                props.insert("condition".to_string(), StmtValue::Stmt(condtion));
+                props.insert("body".to_string(), StmtValue::Stmt(block));
+                props
+            }));
         }
 
         let mut elses_exist = false;
-        let mut elses: Stmt = Stmt {
-            typ: StmType::ElseIfStmt,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props
-            },
-        };
         if !self.is_empty(0) && self.get(0).typ == TknType::Keyword(TknKeyword::Else) {
             elses_exist = true;
+            let block: Stmt;
             self.next();
-            let block: Stmt = self.parse_stmt_block();
+            panic_check!(self.parse_stmt_block(), block);
             elses
                 .props
                 .insert("body".to_string(), StmtValue::Stmt(block));
         }
 
-        return Stmt {
-            typ: StmType::IfStmt,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert("condition".to_string(), StmtValue::Stmt(condtion));
-                props.insert("body".to_string(), StmtValue::Stmt(block));
-                if elses_exist {
-                    props.insert("else".to_string(), StmtValue::Stmt(elses));
-                }
-                props.insert("else_ifs".to_string(), StmtValue::Arr(else_ifs));
-                props
-            },
-        };
+        return Ok(Stmt::from(StmType::IfStmt, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            props.insert("condition".to_string(), StmtValue::Stmt(condtion));
+            props.insert("body".to_string(), StmtValue::Stmt(block));
+            if elses_exist {
+                props.insert("else".to_string(), StmtValue::Stmt(elses));
+            }
+            props.insert("else_ifs".to_string(), StmtValue::Arr(else_ifs));
+            props
+        }));
     }
-    fn parse_for_stmt(self: &mut Self) -> Stmt {
-        self.expect(TknType::Keyword(TknKeyword::For));
-        self.expect(TknType::OPara);
+    fn parse_for_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
+        let mut decl: Stmt;
+        let mut condition: Stmt;
+        let mut action: Stmt;
+        let mut body: Stmt;
 
-        let decl = self.prase_variable_declaration(false);
-        self.expect(TknType::SemiCol);
-        let condition = self.parse_booean_op(&mut false);
-        self.expect(TknType::SemiCol);
-        let action = self.parse_variable_assignment(&mut false);
-        self.expect(TknType::CPara);
+        panic_check!(self.expect(TknType::Keyword(TknKeyword::For)));
+        panic_check!(self.expect(TknType::OPara));
+        panic_check!(self.prase_variable_declaration(false), decl);
+        panic_check!(self.expect(TknType::SemiCol));
+        panic_check!(self.parse_boolean_op(&mut false), condition);
+        panic_check!(self.expect(TknType::SemiCol));
+        panic_check!(self.parse_variable_assignment(&mut false), action);
+        panic_check!(self.expect(TknType::CPara));
+        panic_check!(self.parse_stmt_block(), body);
 
-        let body = self.parse_stmt_block();
-
-        return Stmt {
-            typ: StmType::ForStmt,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert("decl".to_string(), StmtValue::Stmt(decl));
-                props.insert("condition".to_string(), StmtValue::Stmt(condition));
-                props.insert("action".to_string(), StmtValue::Stmt(action));
-                props.insert("body".to_string(), StmtValue::Stmt(body));
-                props
-            },
-        };
+        return Ok(Stmt::from(StmType::ForStmt, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            props.insert("decl".to_string(), StmtValue::Stmt(decl));
+            props.insert("condition".to_string(), StmtValue::Stmt(condition));
+            props.insert("action".to_string(), StmtValue::Stmt(action));
+            props.insert("body".to_string(), StmtValue::Stmt(body));
+            props
+        }));
     }
-    fn parse_while_stmt(self: &mut Self) -> Stmt {
-        self.expect(TknType::Keyword(TknKeyword::While));
-        self.expect(TknType::OPara);
-        let condition = self.parse_booean_op(&mut false);
-        self.expect(TknType::CPara);
-        let body = self.parse_stmt_block();
+    fn parse_while_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
+        let mut condition: Stmt;
+        let mut body: Stmt;
 
-        return Stmt {
-            typ: StmType::WhileStmt,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert("condition".to_string(), StmtValue::Stmt(condition));
-                props.insert("body".to_string(), StmtValue::Stmt(body));
-                props
-            },
-        };
+        panic_check!(self.expect(TknType::Keyword(TknKeyword::While)));
+        panic_check!(self.expect(TknType::OPara));
+        panic_check!(self.parse_boolean_op(&mut false), condition);
+        panic_check!(self.expect(TknType::CPara));
+        panic_check!(self.parse_stmt_block(), body);
+
+        return Ok(Stmt::from(StmType::WhileStmt, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            props.insert("condition".to_string(), StmtValue::Stmt(condition));
+            props.insert("body".to_string(), StmtValue::Stmt(body));
+            props
+        }));
     }
-    fn parse_func_declaration_stmt(self: &mut Self) -> Stmt {
-        self.expect(TknType::Keyword(TknKeyword::Func));
-        let name = self.parse_literal();
-        self.expect(TknType::OPara);
-
-        let mut arglist_exist = false;
-
+    fn parse_func_declaration_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
+        let mut name: Stmt;
         let mut arglist: Stmt = Stmt::new();
+        let mut arglist_exist = false;
+        let mut body: Stmt;
+
+        panic_check!(self.expect(TknType::Keyword(TknKeyword::Func)));
+        panic_check!(self.parse_literal(), name);
+        panic_check!(self.expect(TknType::OPara));
         if (self.get(0).typ != TknType::CPara) {
             arglist_exist = true;
-            arglist = self.parse_arglist();
+            panic_check!(self.parse_arglist(), arglist);
         }
-        self.expect(TknType::CPara);
-        let body = self.parse_stmt_block();
+        panic_check!(self.expect(TknType::CPara));
+        panic_check!(self.parse_stmt_block(), body);
 
-        return Stmt {
-            typ: StmType::FuncDeclaration,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert("name".to_string(), StmtValue::Stmt(name));
-                props.insert("body".to_string(), StmtValue::Stmt(body));
-                if arglist_exist {
-                    props.insert("arglist".to_string(), StmtValue::Stmt(arglist));
-                };
-                props
-            },
-        };
+        return Ok(Stmt::from(StmType::FuncDeclaration, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            props.insert("name".to_string(), StmtValue::Stmt(name));
+            props.insert("body".to_string(), StmtValue::Stmt(body));
+            if arglist_exist {
+                props.insert("arglist".to_string(), StmtValue::Stmt(arglist));
+            };
+            props
+        }));
     }
-    fn parse_arglist(self: &mut Self) -> Stmt {
+    fn parse_arglist(self: &mut Self) -> Result<Stmt, SyntaxError> {
         let mut args: Vec<Stmt> = vec![];
 
         loop {
-            args.push(self.parse_variable_assignment(&mut false));
+            let arg: Stmt;
+            panic_check!(self.parse_variable_assignment(&mut false), arg);
+            args.push(arg);
             if (self.get(0).typ == TknType::Comma) {
                 self.next();
             } else {
@@ -297,143 +322,138 @@ impl Parser {
             }
         }
 
-        return Stmt {
-            typ: StmType::ArgList,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert("list".to_string(), StmtValue::Arr(args));
-                props
-            },
-        };
+        return Ok(Stmt::from(StmType::ArgList, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            props.insert("list".to_string(), StmtValue::Arr(args));
+            props
+        }));
     }
-    fn parse_return_stmt(self: &mut Self) -> Stmt {
-        self.expect(TknType::Keyword(TknKeyword::Return));
-
-        let mut val_exists = false;
+    fn parse_return_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
         let mut val = Stmt::new();
+        let mut val_exists = false;
+
+        panic_check!(self.expect(TknType::Keyword(TknKeyword::Return)));
         if self.get(0).typ != TknType::SemiCol {
-            val = self.parse_arth_op_add(&mut false);
             val_exists = true;
+            panic_check!(self.parse_arth_op_add(&mut false), val);
         }
-        self.expect(TknType::SemiCol);
-        return Stmt {
-            typ: StmType::Return,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                if val_exists {
-                    props.insert("val".to_string(), StmtValue::Stmt(val));
-                }
-                props
-            },
-        };
-    }
-    fn parse_stmt_block(self: &mut Self) -> Stmt {
-        self.expect(TknType::OCurl);
+        panic_check!(self.expect(TknType::SemiCol));
 
+        return Ok(Stmt::from(StmType::Return, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            if val_exists {
+                props.insert("val".to_string(), StmtValue::Stmt(val));
+            }
+            props
+        }));
+    }
+
+    fn parse_stmt_block(self: &mut Self) -> Result<Stmt, SyntaxError> {
         let mut stmts: Vec<Stmt> = vec![];
+        let mut stmt: Stmt;
 
+        panic_check!(self.expect(TknType::OCurl));
         while !self.is_empty(0) && self.get(0).typ != TknType::CCurl {
-            stmts.push(self.parse_statement());
+            panic_check!(self.parse_statement(), stmt);
+            stmts.push(stmt);
         }
+        panic_check!(self.expect(TknType::CCurl));
 
-        self.expect(TknType::CCurl);
+        return Ok(Stmt::from(StmType::StmtBlock, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            props.insert("body".to_string(), StmtValue::Arr(stmts));
+            props
+        }));
 
-        return Stmt {
-            typ: StmType::StmtBlock,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert("body".to_string(), StmtValue::Arr(stmts));
-                props
-            },
-        };
-
-        self.expect(TknType::CCurl);
+        panic_check!(self.expect(TknType::CCurl));
     }
-    fn prase_variable_declaration(self: &mut Self, expect_semi: bool) -> Stmt {
-        self.expect(TknType::Keyword(TknKeyword::Let));
+    fn prase_variable_declaration(self: &mut Self, expect_semi: bool) -> Result<Stmt, SyntaxError> {
+        let mut ident: Stmt;
+        let mut val: Stmt;
 
-        let ident: Stmt = self.parse_literal();
-        self.expect(TknType::Equal);
-        let val = self.parse_arth_op_add(&mut false);
-
+        panic_check!(self.expect(TknType::Keyword(TknKeyword::Let)));
+        if self.get(0).typ != TknType::Ident {
+            return Err(SyntaxError {
+                msg: "Expected identifer in variable declaration".to_string(),
+            });
+        }
+        panic_check!(self.parse_literal(), ident);
+        panic_check!(self.expect(TknType::Equal));
+        panic_check!(self.parse_arth_op_add(&mut false), val);
         if (expect_semi) {
-            self.expect(TknType::SemiCol);
+            panic_check!(self.expect(TknType::SemiCol));
         }
-
-        return Stmt {
-            typ: StmType::VariableDeclaration,
-            props: {
-                let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert(String::from("ident"), StmtValue::Stmt(ident));
-                props.insert(String::from("val"), StmtValue::Stmt(val));
-                props
-            },
-        };
+        return Ok(Stmt::from(StmType::VariableDeclaration, {
+            let mut props: HashMap<String, StmtValue> = HashMap::new();
+            props.insert(String::from("ident"), StmtValue::Stmt(ident));
+            props.insert(String::from("val"), StmtValue::Stmt(val));
+            props
+        }));
     }
-
-    fn parse_fun_call(self: &mut Self, expect_semi: &mut bool) -> Stmt {
+    fn parse_fun_call(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::Ident
             && !self.is_empty(0)
             && self.get(1).typ == TknType::OPara
         {
-            let name = self.parse_literal();
-            self.expect(TknType::OPara);
-
+            let mut name: Stmt;
             let mut arglist_exist = false;
             let mut arglist = Stmt::new();
-            if self.get(0).typ != TknType::CPara {
-                arglist = self.parse_arglist();
-                arglist_exist = true;
-            }
-            self.expect(TknType::CPara);
 
+            panic_check!(self.parse_literal(), name);
+            panic_check!(self.expect(TknType::OPara));
+            if self.get(0).typ != TknType::CPara {
+                arglist_exist = true;
+                panic_check!(self.parse_arglist(), arglist);
+            }
+            panic_check!(self.expect(TknType::CPara));
             if *expect_semi {
                 *expect_semi = false;
-                self.expect(TknType::SemiCol);
+                panic_check!(self.expect(TknType::SemiCol));
             }
 
-            return Stmt {
-                typ: StmType::FuncCall,
-                props: {
-                    let mut props: HashMap<String, StmtValue> = HashMap::new();
-                    props.insert("name".to_string(), StmtValue::Stmt(name));
-                    if arglist_exist {
-                        props.insert("arglist".to_string(), StmtValue::Stmt(arglist));
-                    }
-                    props
-                },
-            };
+            return Ok(Stmt::from(StmType::FuncCall, {
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                props.insert("name".to_string(), StmtValue::Stmt(name));
+                if arglist_exist {
+                    props.insert("arglist".to_string(), StmtValue::Stmt(arglist));
+                }
+                props
+            }));
         }
         return self.parse_variable_assignment(expect_semi);
     }
-    fn parse_variable_assignment(self: &mut Self, expect_semi: &mut bool) -> Stmt {
+    fn parse_variable_assignment(
+        self: &mut Self,
+        expect_semi: &mut bool,
+    ) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::Ident
             && !self.is_empty(1)
             && self.get(1).typ == TknType::Equal
         {
-            let ident: Stmt = self.parse_literal();
-            self.expect(TknType::Equal);
-            let val = self.parse_fun_call(&mut false);
+            let mut ident: Stmt;
+            let mut val: Stmt;
+
+            panic_check!(self.parse_literal(), ident);
+            panic_check!(self.expect(TknType::Equal));
+            panic_check!(self.parse_fun_call(&mut false), val);
 
             if (*expect_semi) {
                 *expect_semi = false;
-                self.expect(TknType::SemiCol);
+                panic_check!(self.expect(TknType::SemiCol));
             }
 
-            let mut props: HashMap<String, StmtValue> = HashMap::new();
-            props.insert(String::from("ident"), StmtValue::Stmt(ident));
-            props.insert(String::from("val"), StmtValue::Stmt(val));
-
-            return Stmt {
-                typ: StmType::VariableAssignment,
-                props: props,
-            };
+            return Ok(Stmt::from(StmType::VariableAssignment, {
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                props.insert(String::from("ident"), StmtValue::Stmt(ident));
+                props.insert(String::from("val"), StmtValue::Stmt(val));
+                props
+            }));
         }
-
         return self.parse_arth_op_add(expect_semi);
     }
-    fn parse_arth_op_add(self: &mut Self, expect_semi: &mut bool) -> Stmt {
-        let mut stmt: Stmt = self.parse_arth_op_mult(&mut false);
+    fn parse_arth_op_add(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+        let mut stmt: Stmt;
+        panic_check!(self.parse_arth_op_mult(&mut false), stmt);
 
         if !self.is_empty(0)
             && (self.get(0).typ == TknType::Plus || self.get(0).typ == TknType::Minus)
@@ -441,30 +461,31 @@ impl Parser {
             while !self.is_empty(0)
                 && (self.get(0).typ == TknType::Plus || self.get(0).typ == TknType::Minus)
             {
+                let rhs: Stmt;
                 let op: String = self.next().val;
-                let rhs: Stmt = self.parse_arth_op_mult(&mut false);
-                stmt = Stmt {
-                    typ: StmType::ArthExpr,
-                    props: {
-                        let mut props: HashMap<String, StmtValue> = HashMap::new();
-                        props.insert(String::from("op"), StmtValue::Str(op));
-                        props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
-                        props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
-                        props
-                    },
-                };
+                panic_check!(self.parse_arth_op_mult(&mut false), rhs);
+
+                stmt = Stmt::from(StmType::ArthExpr, {
+                    let mut props: HashMap<String, StmtValue> = HashMap::new();
+                    props.insert(String::from("op"), StmtValue::Str(op));
+                    props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
+                    props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                    props
+                });
             }
         }
 
         if *expect_semi {
             *expect_semi = false;
-            self.expect(TknType::SemiCol);
+            panic_check!(self.expect(TknType::SemiCol));
         }
 
-        return stmt;
+        return Ok(stmt);
     }
-    fn parse_arth_op_mult(self: &mut Self, expect_semi: &mut bool) -> Stmt {
-        let mut stmt: Stmt = self.parse_booean_op(&mut false);
+    fn parse_arth_op_mult(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+        let mut stmt: Stmt;
+
+        panic_check!(self.parse_boolean_op(&mut false), stmt);
 
         if !self.is_empty(0)
             && (self.get(0).typ == TknType::Mult || self.get(0).typ == TknType::Div)
@@ -473,29 +494,28 @@ impl Parser {
                 && (self.get(0).typ == TknType::Mult || self.get(0).typ == TknType::Div)
             {
                 let op: String = self.next().val;
-                let rhs: Stmt = self.parse_booean_op(&mut false);
+                let rhs: Stmt;
+                panic_check!(self.parse_boolean_op(&mut false), rhs);
 
-                stmt = Stmt {
-                    typ: StmType::ArthExpr,
-                    props: {
-                        let mut props: HashMap<String, StmtValue> = HashMap::new();
-                        props.insert(String::from("op"), StmtValue::Str(op));
-                        props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
-                        props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
-                        props
-                    },
-                };
+                stmt = Stmt::from(StmType::ArthExpr, {
+                    let mut props: HashMap<String, StmtValue> = HashMap::new();
+                    props.insert(String::from("op"), StmtValue::Str(op));
+                    props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
+                    props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                    props
+                });
             }
         }
 
         if *expect_semi {
             *expect_semi = false;
-            self.expect(TknType::SemiCol)
+            panic_check!(self.expect(TknType::SemiCol))
         }
-        return stmt;
+        return Ok(stmt);
     }
-    fn parse_booean_op(self: &mut Self, expect_semi: &mut bool) -> Stmt {
-        let mut stmt = self.parse_grouping();
+    fn parse_boolean_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+        let mut stmt: Stmt;
+        panic_check!(self.parse_grouping(), stmt);
 
         if !self.is_empty(0)
             && [
@@ -524,46 +544,48 @@ impl Parser {
                 .contains(&self.get(0).typ)
             {
                 let op: String = self.next().val;
-                let rhs: Stmt = self.parse_grouping();
+                let rhs: Stmt;
+                panic_check!(self.parse_grouping(), rhs);
 
-                stmt = Stmt {
-                    typ: StmType::BooleanExpr,
-                    props: {
-                        let mut props: HashMap<String, StmtValue> = HashMap::new();
-                        props.insert(String::from("op"), StmtValue::Str(op));
-                        props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
-                        props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
-                        props
-                    },
-                };
+                stmt = Stmt::from(StmType::BooleanExpr, {
+                    let mut props: HashMap<String, StmtValue> = HashMap::new();
+                    props.insert(String::from("op"), StmtValue::Str(op));
+                    props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
+                    props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                    props
+                });
             }
         }
 
         if *expect_semi {
             *expect_semi = false;
-            self.expect(TknType::SemiCol);
+            panic_check!(self.expect(TknType::SemiCol));
         }
-        return stmt;
+        return Ok(stmt);
     }
-    fn parse_grouping(self: &mut Self) -> Stmt {
+    fn parse_grouping(self: &mut Self) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::OPara {
+            let stmt: Stmt;
+
             self.next();
-            let stmt: Stmt = self.parse_arth_op_add(&mut false);
-            self.expect(TknType::CPara);
-            return stmt;
+            panic_check!(self.parse_arth_op_add(&mut false), stmt);
+            panic_check!(self.expect(TknType::CPara));
+
+            return Ok(stmt);
         }
 
         return self.parse_array_notation();
     }
-
-    fn parse_array_notation(self: &mut Self) -> Stmt {
+    fn parse_array_notation(self: &mut Self) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::OSqr {
-            self.next();
-
             let mut vals: Vec<Stmt> = vec![];
+            let mut val: Stmt;
+
+            self.next();
             if self.get(0).typ != TknType::CSqr {
                 loop {
-                    vals.push(self.parse_arth_op_add(&mut false));
+                    panic_check!(self.parse_arth_op_add(&mut false), val);
+                    vals.push(val);
                     if self.get(0).typ == TknType::Comma {
                         self.next();
                     } else {
@@ -571,36 +593,32 @@ impl Parser {
                     }
                 }
             }
-            self.expect(TknType::CSqr);
-
-            return Stmt {
-                typ: StmType::Arr,
-                props: {
-                    let mut props: HashMap<String, StmtValue> = HashMap::new();
-                    props.insert("vals".to_string(), StmtValue::Arr(vals));
-                    props
-                },
-            };
+            panic_check!(self.expect(TknType::CSqr));
+            return Ok(Stmt::from(StmType::Arr, {
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                props.insert("vals".to_string(), StmtValue::Arr(vals));
+                props
+            }));
         }
 
         return self.parse_hashtable_notation();
     }
-
-    fn parse_hashtable_notation(self: &mut Self) -> Stmt {
+    fn parse_hashtable_notation(self: &mut Self) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::OCurl {
-            self.next();
-
             let mut vals: Vec<Vec<Stmt>> = vec![];
+            let mut elem: Stmt;
+
+            self.next();
             if self.get(0).typ != TknType::CCurl {
                 loop {
-                    let mut elem: Vec<Stmt> = vec![];
-                    elem.push(self.parse_arth_op_add(&mut false));
+                    let mut elems: Vec<Stmt> = vec![];
+                    panic_check!(self.parse_arth_op_add(&mut false), elem);
+                    elems.push(elem);
+                    panic_check!(self.expect(TknType::Colon));
+                    panic_check!(self.parse_arth_op_add(&mut false), elem);
+                    elems.push(elem);
 
-                    self.expect(TknType::Colon);
-                    elem.push(self.parse_arth_op_add(&mut false));
-
-                    vals.push(elem);
-
+                    vals.push(elems);
                     if self.get(0).typ == TknType::Comma {
                         self.next();
                     } else {
@@ -608,39 +626,30 @@ impl Parser {
                     }
                 }
             }
-            self.expect(TknType::CCurl);
+            panic_check!(self.expect(TknType::CCurl));
 
-            return Stmt {
-                typ: StmType::HashMap,
-                props: {
-                    let mut props: HashMap<String, StmtValue> = HashMap::new();
-                    props.insert("vals".to_string(), StmtValue::HashMap(vals));
-                    props
-                },
-            };
+            return Ok(Stmt::from(StmType::HashMap, {
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                props.insert("vals".to_string(), StmtValue::HashMap(vals));
+                props
+            }));
         }
 
         return self.parse_literal();
     }
 
-    fn parse_literal(self: &mut Self) -> Stmt {
+    fn parse_literal(self: &mut Self) -> Result<Stmt, SyntaxError> {
         let tkn: Tkn = self.next();
         let mut props: HashMap<String, StmtValue> = HashMap::new();
 
         return match tkn.typ {
             TknType::Ident => {
                 props.insert(String::from("name"), StmtValue::Str(tkn.val));
-                Stmt {
-                    typ: StmType::Ident,
-                    props: props,
-                }
+                Ok(Stmt::from(StmType::Ident, props))
             }
             TknType::String => {
                 props.insert(String::from("val"), StmtValue::Str(tkn.val));
-                Stmt {
-                    typ: StmType::StringLiteral,
-                    props: props,
-                }
+                Ok(Stmt::from(StmType::StringLiteral, props))
             }
             TknType::Number => {
                 if (tkn.val.contains(".")) {
@@ -648,41 +657,26 @@ impl Parser {
                         String::from("val"),
                         StmtValue::Float(tkn.val.parse().unwrap()),
                     );
-                    return Stmt {
-                        typ: StmType::FloatLiteral,
-                        props: props,
-                    };
+                    return Ok(Stmt::from(StmType::FloatLiteral, props));
                 }
                 props.insert(
                     String::from("val"),
                     StmtValue::Int(tkn.val.parse().unwrap()),
                 );
-                return Stmt {
-                    typ: StmType::IntLiteral,
-                    props: props,
-                };
+                Ok(Stmt::from(StmType::IntLiteral, props))
             }
             TknType::Keyword(TknKeyword::True) => {
                 props.insert(String::from("val"), StmtValue::Bool(true));
-                Stmt {
-                    typ: StmType::BooleanLiteral,
-                    props: props,
-                }
+                Ok(Stmt::from(StmType::BooleanLiteral, props))
             }
             TknType::Keyword(TknKeyword::False) => {
                 props.insert(String::from("val"), StmtValue::Bool(false));
-                Stmt {
-                    typ: StmType::BooleanLiteral,
-                    props: props,
-                }
+                Ok(Stmt::from(StmType::BooleanLiteral, props))
             }
             _ => {
-                self.push_err(format!(
-                    "{}:{} Unexpected literal {:?} ",
-                    tkn.line, tkn.col, tkn.typ
-                ));
-                println!("{}", self.errs.last().unwrap().msg);
-                unreachable!();
+                return Err(SyntaxError {
+                    msg: format!("{}:{} Unexpected literal {:?} ", tkn.line, tkn.col, tkn.typ),
+                });
             }
         };
     }
@@ -825,12 +819,12 @@ impl Parser {
                 }
             }
 
-            StmType::ArgList =>  {
-                let args = get_stmt_typ!(&node.props["list"],StmtValue::Arr);
+            StmType::ArgList => {
+                let args = get_stmt_typ!(&node.props["list"], StmtValue::Arr);
                 for arg in args {
                     self.print_tree(arg, depth + 1);
                 }
-            },
+            }
 
             StmType::Return => {
                 println!("return stmt");
@@ -838,7 +832,7 @@ impl Parser {
             }
             StmType::Arr => {
                 println!("arr");
-                let vals = get_stmt_typ!(&node.props["vals"],StmtValue::Arr);
+                let vals = get_stmt_typ!(&node.props["vals"], StmtValue::Arr);
                 if vals.len() == 0 {
                     println!("{}empty", space.repeat((depth + 1) as usize));
                 } else {
@@ -850,7 +844,7 @@ impl Parser {
             StmType::HashMap => {
                 println!("hashmap");
 
-                let vals = get_stmt_typ!(&node.props["vals"],StmtValue::HashMap);
+                let vals = get_stmt_typ!(&node.props["vals"], StmtValue::HashMap);
 
                 if vals.len() == 0 {
                     println!("{}empty", space.repeat((depth + 1) as usize));
