@@ -1,15 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::*;
-
-macro_rules! get_stmt_typ {
-    ($value: expr , $typ: path) => {
-        match $value {
-            $typ(x) => x,
-            _ => unreachable!(),
-        }
-    };
-}
+use crate::{get_stmt_typ, parser::*};
 
 #[derive(Debug)]
 pub enum SymbType {
@@ -19,7 +10,7 @@ pub enum SymbType {
 
 #[derive(Debug)]
 struct SymbData {
-    typ : SymbType
+    typ: SymbType,
 }
 
 #[derive(Debug)]
@@ -76,7 +67,7 @@ impl ScopeStack {
         self.cur_scope = saved_scope;
         return found;
     }
-    fn get_symb(self: &mut Self,name : &str) -> &SymbData {
+    fn get_symb(self: &mut Self, name: &str) -> &SymbData {
         let saved_scope = self.cur_scope;
         let mut found = false;
         loop {
@@ -95,19 +86,16 @@ impl ScopeStack {
 
         assert!(found);
 
-        let tmp_idx = self.cur_scope; 
+        let tmp_idx = self.cur_scope;
         self.cur_scope = saved_scope;
 
-        return  &self.scopes[tmp_idx as usize].symbs[name];
+        return &self.scopes[tmp_idx as usize].symbs[name];
     }
-
 
     fn push_symb(self: &mut Self, ident: String, typ: SymbType) {
         self.scopes[self.cur_scope as usize]
             .symbs
-            .insert(ident, SymbData {
-                typ: typ,
-            });
+            .insert(ident, SymbData { typ: typ });
     }
 }
 
@@ -173,7 +161,7 @@ impl SymenticAnal {
 
             StmType::IfStmt => {
                 self.analyse_variables(get_stmt_typ!(&node.props["condition"], StmtValue::Stmt));
-                self.analyse_variables(get_stmt_typ!(&node.props["block"], StmtValue::Stmt));
+                self.analyse_variables(get_stmt_typ!(&node.props["body"], StmtValue::Stmt));
 
                 let else_ifs = get_stmt_typ!(&node.props["else_ifs"], StmtValue::Arr);
                 for else_if in else_ifs {
@@ -181,13 +169,16 @@ impl SymenticAnal {
                         &else_if.props["condition"],
                         StmtValue::Stmt
                     ));
-                    self.analyse_variables(get_stmt_typ!(&else_if.props["block"], StmtValue::Stmt));
+                    self.analyse_variables(get_stmt_typ!(&else_if.props["body"], StmtValue::Stmt));
                 }
 
-                let elses = get_stmt_typ!(&node.props["else"], StmtValue::Stmt);
-                if (elses.props.contains_key("block")) {
-                    self.analyse_variables(get_stmt_typ!(&elses.props["block"], StmtValue::Stmt));
+                // else
+                if (node.props.contains_key("else")) {
+                    self.analyse_variables(get_stmt_typ!(
+                        &get_stmt_typ!(&node.props["else"]).props["body"]
+                    ));
                 }
+              
             }
             StmType::ForStmt => {
                 self.scope_stk.push_scope();
@@ -262,9 +253,9 @@ impl SymenticAnal {
                     &get_stmt_typ!(&node.props["name"], StmtValue::Stmt).props["name"],
                     StmtValue::Str
                 );
-                match self.scope_stk.get_symb(func_name).typ  {
+                match self.scope_stk.get_symb(func_name).typ {
                     SymbType::Function => {}
-                    SymbType::Variable =>  println!("variable '{}' is not callable",func_name)
+                    SymbType::Variable => println!("variable '{}' is not callable", func_name),
                 }
             }
 
