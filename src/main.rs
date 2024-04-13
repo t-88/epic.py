@@ -13,7 +13,6 @@ fn main() {
     let src: String = String::from("
         let a = 2;
         let b = 1 + a;
-        // let n = n;
 
 
         // ifs , else ifs , elses
@@ -61,6 +60,10 @@ fn main() {
             c: b,
             d: a + b
         };
+
+        let n = n;
+        a();
+        hello();
     ");
 
     let mut lexer: Lexer = Lexer::new();

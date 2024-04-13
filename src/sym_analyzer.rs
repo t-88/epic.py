@@ -12,13 +12,24 @@ macro_rules! get_stmt_typ {
 }
 
 #[derive(Debug)]
-pub struct Scope {
-    idents: HashMap<String, bool>,
+pub enum SymbType {
+    Variable,
+    Function,
 }
-impl Scope {
+
+#[derive(Debug)]
+struct SymbData {
+    typ : SymbType
+}
+
+#[derive(Debug)]
+pub struct SymbTable {
+    symbs: HashMap<String, SymbData>,
+}
+impl SymbTable {
     fn new() -> Self {
-        Scope {
-            idents: HashMap::new(),
+        SymbTable {
+            symbs: HashMap::new(),
         }
     }
 }
@@ -26,7 +37,7 @@ impl Scope {
 #[derive(Debug)]
 pub struct ScopeStack {
     cur_scope: i64,
-    scopes: Vec<Scope>,
+    scopes: Vec<SymbTable>,
 }
 
 impl ScopeStack {
@@ -39,19 +50,19 @@ impl ScopeStack {
 
     fn push_scope(self: &mut Self) {
         self.cur_scope += 1;
-        self.scopes.push(Scope::new());
+        self.scopes.push(SymbTable::new());
     }
 
     fn pop_scope(self: &mut Self) {
         self.cur_scope -= 1;
         self.scopes.pop();
     }
-    fn check_ident(self: &mut Self, name: &str) -> bool {
+    fn check_symb(self: &mut Self, name: &str) -> bool {
         let saved_scope = self.cur_scope;
         let mut found = false;
         loop {
             if (self.scopes[self.cur_scope as usize]
-                .idents
+                .symbs
                 .contains_key(name))
             {
                 found = true;
@@ -65,10 +76,38 @@ impl ScopeStack {
         self.cur_scope = saved_scope;
         return found;
     }
-    fn push_ident(self: &mut Self, ident: String) {
+    fn get_symb(self: &mut Self,name : &str) -> &SymbData {
+        let saved_scope = self.cur_scope;
+        let mut found = false;
+        loop {
+            if (self.scopes[self.cur_scope as usize]
+                .symbs
+                .contains_key(name))
+            {
+                found = true;
+                break;
+            }
+            self.cur_scope -= 1;
+            if (self.cur_scope < 0) {
+                break;
+            }
+        }
+
+        assert!(found);
+
+        let tmp_idx = self.cur_scope; 
+        self.cur_scope = saved_scope;
+
+        return  &self.scopes[tmp_idx as usize].symbs[name];
+    }
+
+
+    fn push_symb(self: &mut Self, ident: String, typ: SymbType) {
         self.scopes[self.cur_scope as usize]
-            .idents
-            .insert(ident, true);
+            .symbs
+            .insert(ident, SymbData {
+                typ: typ,
+            });
     }
 }
 
@@ -103,20 +142,21 @@ impl SymenticAnal {
             StmType::BooleanLiteral => {}
             StmType::Ident => {
                 let ident_name = get_stmt_typ!(&node.props["name"], StmtValue::Str);
-                if (!self.scope_stk.check_ident(ident_name)) {
-                    println!("{:?}", self.scope_stk);
-                    println!("variables '{}' not declared", ident_name);
+                if (!self.scope_stk.check_symb(ident_name)) {
+                    // println!("{:?}", self.scope_stk);
+                    println!("variable '{}' not declared", ident_name);
                 }
             }
             StmType::VariableDeclaration => {
-                let ident_name = get_stmt_typ!(
-                    &get_stmt_typ!(&node.props["ident"], StmtValue::Stmt).props["name"],
-                    StmtValue::Str
-                );
-
-                self.scope_stk.push_ident((*ident_name).clone());
-
                 self.analyse_variables(get_stmt_typ!(&node.props["val"], StmtValue::Stmt));
+                self.scope_stk.push_symb(
+                    get_stmt_typ!(
+                        &get_stmt_typ!(&node.props["ident"], StmtValue::Stmt).props["name"],
+                        StmtValue::Str
+                    )
+                    .to_string(),
+                    SymbType::Variable,
+                );
             }
             StmType::VariableAssignment => {
                 self.analyse_variables(get_stmt_typ!(&node.props["ident"], StmtValue::Stmt));
@@ -162,12 +202,13 @@ impl SymenticAnal {
                 self.analyse_variables(get_stmt_typ!(&node.props["body"], StmtValue::Stmt));
             }
             StmType::FuncDeclaration => {
-                self.scope_stk.push_ident(
+                self.scope_stk.push_symb(
                     get_stmt_typ!(
                         &get_stmt_typ!(&node.props["name"], StmtValue::Stmt).props["name"],
                         StmtValue::Str
                     )
                     .clone(),
+                    SymbType::Function,
                 );
                 self.scope_stk.push_scope();
 
@@ -180,18 +221,20 @@ impl SymenticAnal {
                     for stmt in list {
                         match stmt.typ {
                             StmType::VariableAssignment => {
-                                self.scope_stk.push_ident(
+                                self.scope_stk.push_symb(
                                     get_stmt_typ!(
                                         &get_stmt_typ!(&stmt.props["ident"], StmtValue::Stmt).props
                                             ["name"],
                                         StmtValue::Str
                                     )
                                     .clone(),
+                                    SymbType::Variable,
                                 );
                             }
                             StmType::Ident => {
-                                self.scope_stk.push_ident(
+                                self.scope_stk.push_symb(
                                     get_stmt_typ!(&stmt.props["name"], StmtValue::Str).clone(),
+                                    SymbType::Variable,
                                 );
                             }
                             _ => unreachable!(),
@@ -210,8 +253,19 @@ impl SymenticAnal {
                 }
             }
             StmType::FuncCall => {
+                if node.props.contains_key("arglsit") {
+                    self.analyse_variables(get_stmt_typ!(&node.props["arglist"], StmtValue::Stmt));
+                }
+
                 self.analyse_variables(get_stmt_typ!(&node.props["name"], StmtValue::Stmt));
-                self.analyse_variables(get_stmt_typ!(&node.props["arglist"], StmtValue::Stmt));
+                let func_name = get_stmt_typ!(
+                    &get_stmt_typ!(&node.props["name"], StmtValue::Stmt).props["name"],
+                    StmtValue::Str
+                );
+                match self.scope_stk.get_symb(func_name).typ  {
+                    SymbType::Function => {}
+                    SymbType::Variable =>  println!("variable '{}' is not callable",func_name)
+                }
             }
 
             StmType::StmtBlock => {
@@ -222,7 +276,6 @@ impl SymenticAnal {
                 }
                 self.scope_stk.pop_scope();
             }
-
 
             StmType::Return => {
                 self.analyse_variables(get_stmt_typ!(&node.props["val"], StmtValue::Stmt));
@@ -238,7 +291,7 @@ impl SymenticAnal {
                 for val in vals {
                     self.analyse_variables(&val[1]);
                 }
-            }  
+            }
 
             _ => {
                 println!("{:?}", node);
