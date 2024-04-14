@@ -51,7 +51,7 @@ pub struct Tkn {
     pub typ: TknType,
     pub val: String,
     pub line: u64,
-    pub col: u64,
+    col: u64,
 }
 impl Tkn {
     pub fn new(typ: TknType, val: &str, line: u64, col: u64) -> Tkn {
@@ -97,7 +97,7 @@ impl Lexer {
             errs: vec![],
             idx: 0,
             col: 0,
-            line: 0,
+            line: 1,
         }
     }
 
@@ -193,6 +193,8 @@ impl Lexer {
 
         while (!self.is_empty()) {
             let mut chr: char = self.next();
+
+
             if (SKIPPABLES.contains(&chr)) {
                 if (chr == '\n') {
                     self.line += 1;
