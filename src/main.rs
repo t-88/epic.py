@@ -3,12 +3,14 @@
 mod lexer;
 mod parser;
 mod sym_analyzer;
+mod transpiler;
 
 use std::fs;
 
 use sym_analyzer::*;
 use lexer::*;
 use parser::*;
+use transpiler::*;
 
 
 fn main() {
@@ -37,9 +39,13 @@ fn main() {
         }
         return;
     }
-    parser.print_tree(&parser.program, 0);
-    
+    // parser.print_tree(&parser.program, 0);
 
     let mut analyzer: SymenticAnal =  SymenticAnal::new();
-    analyzer.analyse(parser.program);
+    analyzer.analyse(&parser.program);
+
+
+    let transpiler : Transpiler = Transpiler::new();
+    let src = transpiler.js_transpiler(&parser.program, 0,&mut true);
+    println!("{}",src);
 }

@@ -140,9 +140,9 @@ impl SymenticAnal {
             scope_stk: ScopeStack::new(),
         }
     }
-    pub fn analyse(self: &mut Self, program: Stmt) {
+    pub fn analyse(self: &mut Self, program: &Stmt) {
         assert!(program.typ == StmType::Program);
-        self.analyse_variables(&program);
+        self.analyse_variables(program);
     }
 
     pub fn get_val_typ(self: &Self, stmt: &Stmt) -> SymbType {
