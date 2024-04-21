@@ -40,6 +40,6 @@ fn main() {
     parser.print_tree(&parser.program, 0);
     
 
-    // let mut analyzer: SymenticAnal =  SymenticAnal::new();
-    // analyzer.analyse(parser.program);
+    let mut analyzer: SymenticAnal =  SymenticAnal::new();
+    analyzer.analyse(parser.program);
 }

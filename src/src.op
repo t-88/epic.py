@@ -1,54 +1,54 @@
 func on_init(ID){} 
  func on_update(ID) {
-      pos = get_component(ID,Components.Position);  
-  size = get_component(ID,Components.Size);  
-  data = get_component(ID,Components.Storage);  
-  data.collided = 0;
+    let pos = $.get_component(ID,Components.Position);  
+    let size = $.get_component(ID,Components.Size);  
+    let data = $.get_component(ID,Components.Storage);  
+    data.collided = 0;
 
 
-  scene_id = get_entity_by_id("Main-Scene");
-  scene_size = get_component(scene_id,Components.Size);  
+  let scene_id = $.$.get_entity_by_id("Main-Scene");
+  let scene_size = $.get_component(scene_id,Components.Size);  
   
   if(pos.x < 0) {
-          r_factor = randint(-2,2);
-      r_factor = r_factor / 100;                   
+        let r_factor = $.randint(-2,2);
+        r_factor = r_factor / 100;                   
       data.x_dir =  data.x_dir * -1 + r_factor; 
   } 
   if(pos.x > scene_size.w - size.w) {
-          r_factor = randint(-2,2);
+          let r_factor = $.randint(-2,2);
       r_factor = r_factor / 100;                   
       data.x_dir =  data.x_dir * -1 + r_factor; 
   } 
 
 
   if(pos.y < 0) {
-          r_factor = randint(-2,2);
+        let  r_factor = $.randint(-2,2);
       r_factor = r_factor / 100;                   
       data.y_dir =  data.y_dir * -1 + r_factor; 
   } 
   if(pos.y > scene_size.h - size.h) {
-          r_factor = randint(-2,2);
+        let r_factor = $.randint(-2,2);
       r_factor = r_factor / 100;                   
       data.y_dir =  data.y_dir * -1 + r_factor; 
       
       
-      clear_entities();
-      init();
+      $.clear_entities();
+      $.init();
   }      
   
-  player_id = get_entity_by_id("player");
-  player_pos = get_component(player_id,Components.Position);
-  player_size = get_component(player_id,Components.Size);
+  let player_id = $.get_entity_by_id("player");
+  let player_pos = $.get_component(player_id,Components.Position);
+  let player_size = $.get_component(player_id,Components.Size);
 
 
-  sqrted = sqrt(data.x_dir*data.x_dir+data.y_dir*data.y_dir);   
+  let sqrted = $.sqrt(data.x_dir*data.x_dir+data.y_dir*data.y_dir);   
   data.vel_x = (data.x_dir / sqrted) * data.speed;
   data.vel_y = (data.y_dir / sqrted) * data.speed;
 
   
-  if(AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x + data.vel_x,pos.y + data.vel_y,size.w,size.h)) {
-          x_collide = 1;
-      if(AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x,pos.y + data.vel_y,size.w,size.h)) {
+  if($.AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x + data.vel_x,pos.y + data.vel_y,size.w,size.h)) {
+        let x_collide = 1;
+      if($.AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x,pos.y + data.vel_y,size.w,size.h)) {
             if(data.vel_y > 0) {
               pos.y = player_pos.y - size.h;   
         } 
@@ -62,7 +62,7 @@ func on_init(ID){}
         
       if(x_collide) {
           
-      if(AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x + data.vel_x,pos.y,size.w,size.h)) {
+      if($.AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x + data.vel_x,pos.y,size.w,size.h)) {
               if(data.vel_x > 0) {
                 pos.x = player_pos.x - size.w;   
           } 

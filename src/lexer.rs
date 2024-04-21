@@ -44,6 +44,7 @@ pub enum TknType {
     Comma,
     SemiCol,
     Dot,
+    Sys,
     EOF,
 }
 
@@ -79,7 +80,7 @@ const KEYWORDS: &[&str] = &[
 const ARTH_OPS: &[char] = &['+', '-', '*', '/'];
 const SINGLE_CHAR_BOOL_OPS: &[&str] = &[">", "<"];
 const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "==","!="];
-const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '=',',',':','.'];
+const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '=',',',':','.','$'];
 
 pub struct Lexer {
     pub src: String,
@@ -184,6 +185,7 @@ impl Lexer {
             ',' => Some(TknType::Comma),
             ':' => Some(TknType::Colon),
             '.' => Some(TknType::Dot),
+            '$' => Some(TknType::Sys),
             _ => None,
         }
     }

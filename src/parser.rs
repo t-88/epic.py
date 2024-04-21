@@ -29,6 +29,7 @@ pub enum StmType {
     WhileStmt,
     FuncDeclaration,
     FuncCall,
+    SysIdent,
     ArgList,
     Return,
     Empty,
@@ -49,6 +50,7 @@ pub enum StmtValue {
 
 #[derive(Debug)]
 pub struct Stmt {
+    pub line: u64,
     pub typ: StmType,
     pub props: HashMap<String, StmtValue>,
 }
@@ -56,12 +58,14 @@ pub struct Stmt {
 impl Stmt {
     fn new() -> Self {
         Stmt {
+            line: 0,
             typ: StmType::Empty,
             props: HashMap::new(),
         }
     }
-    fn from(typ: StmType, props: HashMap<String, StmtValue>) -> Self {
+    fn from(line: u64, typ: StmType, props: HashMap<String, StmtValue>) -> Self {
         Stmt {
+            line: line,
             typ: typ,
             props: props,
         }
@@ -203,6 +207,7 @@ impl Parser {
         return Parser {
             lexer: Lexer::new(),
             program: Stmt {
+                line: 0,
                 typ: StmType::Program,
                 props: props,
             },
@@ -269,6 +274,7 @@ impl Parser {
         }
 
         body.push(Stmt {
+            line: self.get(0).line,
             typ: StmType::EOP,
             props: HashMap::new(),
         });
@@ -316,7 +322,7 @@ impl Parser {
             self.next();
             panic_check!(self.parse_stmt_block(), block);
 
-            else_ifs.push(Stmt::from(StmType::ElseIfStmt, {
+            else_ifs.push(Stmt::from(self.get(-1).line, StmType::ElseIfStmt, {
                 let mut props: HashMap<String, StmtValue> = HashMap::new();
                 props.insert("condition".to_string(), StmtValue::Stmt(condtion));
                 props.insert("body".to_string(), StmtValue::Stmt(block));
@@ -335,7 +341,7 @@ impl Parser {
                 .insert("body".to_string(), StmtValue::Stmt(block));
         }
 
-        return Ok(Stmt::from(StmType::IfStmt, {
+        return Ok(Stmt::from(self.get(-1).line, StmType::IfStmt, {
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             props.insert("condition".to_string(), StmtValue::Stmt(condtion));
             props.insert("body".to_string(), StmtValue::Stmt(block));
@@ -367,7 +373,7 @@ impl Parser {
         self.next();
         panic_check!(self.parse_stmt_block(), body);
 
-        return Ok(Stmt::from(StmType::ForStmt, {
+        return Ok(Stmt::from(self.get(-1).line, StmType::ForStmt, {
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             props.insert("decl".to_string(), StmtValue::Stmt(decl));
             props.insert("condition".to_string(), StmtValue::Stmt(condition));
@@ -389,7 +395,7 @@ impl Parser {
         self.next();
         panic_check!(self.parse_stmt_block(), body);
 
-        return Ok(Stmt::from(StmType::WhileStmt, {
+        return Ok(Stmt::from(self.get(-1).line, StmType::WhileStmt, {
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             props.insert("condition".to_string(), StmtValue::Stmt(condition));
             props.insert("body".to_string(), StmtValue::Stmt(body));
@@ -415,7 +421,7 @@ impl Parser {
         self.next();
         panic_check!(self.parse_stmt_block(), body);
 
-        return Ok(Stmt::from(StmType::FuncDeclaration, {
+        return Ok(Stmt::from(self.get(-1).line, StmType::FuncDeclaration, {
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             props.insert("name".to_string(), StmtValue::Stmt(name));
             props.insert("body".to_string(), StmtValue::Stmt(body));
@@ -439,7 +445,7 @@ impl Parser {
             }
         }
 
-        return Ok(Stmt::from(StmType::ArgList, {
+        return Ok(Stmt::from(self.get(-1).line, StmType::ArgList, {
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             props.insert("list".to_string(), StmtValue::Arr(args));
             props
@@ -458,7 +464,7 @@ impl Parser {
         panic_check!(self.expect(TknType::SemiCol));
         self.next();
 
-        return Ok(Stmt::from(StmType::Return, {
+        return Ok(Stmt::from(self.get(-1).line, StmType::Return, {
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             if val_exists {
                 props.insert("val".to_string(), StmtValue::Stmt(val));
@@ -481,7 +487,7 @@ impl Parser {
         panic_check!(self.expect(TknType::CCurl));
         self.next();
 
-        return Ok(Stmt::from(StmType::StmtBlock, {
+        return Ok(Stmt::from(self.get(-1).line, StmType::StmtBlock, {
             let mut props: HashMap<String, StmtValue> = HashMap::new();
             props.insert("body".to_string(), StmtValue::Arr(stmts));
             props
@@ -500,18 +506,22 @@ impl Parser {
         panic_check!(self.parse_literal(), ident);
         panic_check!(self.expect(TknType::Equal));
         self.next();
-        panic_check!(self.parse_arth_op_add(&mut false), val);
+        panic_check!(self.parse_fun_call(&mut false), val);
 
         if (expect_semi) {
             panic_check!(self.expect(TknType::SemiCol));
             self.next();
         }
-        return Ok(Stmt::from(StmType::VariableDeclaration, {
-            let mut props: HashMap<String, StmtValue> = HashMap::new();
-            props.insert(String::from("ident"), StmtValue::Stmt(ident));
-            props.insert(String::from("val"), StmtValue::Stmt(val));
-            props
-        }));
+        return Ok(Stmt::from(
+            self.get(0).line,
+            StmType::VariableDeclaration,
+            {
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                props.insert(String::from("ident"), StmtValue::Stmt(ident));
+                props.insert(String::from("val"), StmtValue::Stmt(val));
+                props
+            },
+        ));
     }
     fn parse_fun_call(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::Ident
@@ -538,7 +548,7 @@ impl Parser {
                 self.next();
             }
 
-            return Ok(Stmt::from(StmType::FuncCall, {
+            return Ok(Stmt::from(self.get(-1).line, StmType::FuncCall, {
                 let mut props: HashMap<String, StmtValue> = HashMap::new();
                 props.insert("name".to_string(), StmtValue::Stmt(name));
                 if arglist_exist {
@@ -562,7 +572,7 @@ impl Parser {
             let mut val: Stmt;
             panic_check!(self.parse_fun_call(&mut false), val);
 
-            stmt = Stmt::from(StmType::VariableAssignment, {
+            stmt = Stmt::from(self.get(-1).line, StmType::VariableAssignment, {
                 let mut props: HashMap<String, StmtValue> = HashMap::new();
                 props.insert(String::from("ident"), StmtValue::Stmt(stmt));
                 props.insert(String::from("val"), StmtValue::Stmt(val));
@@ -589,7 +599,7 @@ impl Parser {
 
                 expect_expr!(self, self.parse_arth_op_mult(&mut false), rhs);
 
-                stmt = Stmt::from(StmType::ArthExpr, {
+                stmt = Stmt::from(self.get(-1).line, StmType::ArthExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
                     props.insert(String::from("op"), StmtValue::Str(op));
                     props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
@@ -622,7 +632,7 @@ impl Parser {
                 let rhs: Stmt;
                 panic_check!(self.parse_boolean_op(&mut false), rhs);
 
-                stmt = Stmt::from(StmType::ArthExpr, {
+                stmt = Stmt::from(self.get(-1).line, StmType::ArthExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
                     props.insert(String::from("op"), StmtValue::Str(op));
                     props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
@@ -673,7 +683,7 @@ impl Parser {
                 let rhs: Stmt;
                 panic_check!(self.parse_dot_op(expect_semi), rhs);
 
-                stmt = Stmt::from(StmType::BooleanExpr, {
+                stmt = Stmt::from(self.get(-1).line, StmType::BooleanExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
                     props.insert(String::from("op"), StmtValue::Str(op));
                     props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
@@ -694,15 +704,14 @@ impl Parser {
     fn parse_dot_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
         let mut stmt: Stmt;
         panic_check!(self.parse_grouping(), stmt);
-
         if (self.get(0).typ == TknType::Dot) {
             while !self.is_empty(0) && self.get(0).typ == TknType::Dot {
                 self.next();
 
                 let rhs: Stmt;
-                panic_check!(self.parse_dot_op(expect_semi), rhs);
+                panic_check!(self.parse_fun_call(expect_semi), rhs);
 
-                stmt = Stmt::from(StmType::DotExpr, {
+                stmt = Stmt::from(self.get(-1).line, StmType::DotExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
                     props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
                     props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
@@ -753,7 +762,7 @@ impl Parser {
             }
             panic_check!(self.expect(TknType::CSqr));
             self.next();
-            return Ok(Stmt::from(StmType::Arr, {
+            return Ok(Stmt::from(self.get(-1).line, StmType::Arr, {
                 let mut props: HashMap<String, StmtValue> = HashMap::new();
                 props.insert("vals".to_string(), StmtValue::Arr(vals));
                 props
@@ -789,7 +798,7 @@ impl Parser {
             panic_check!(self.expect(TknType::CCurl));
             self.next();
 
-            return Ok(Stmt::from(StmType::HashMap, {
+            return Ok(Stmt::from(self.get(-1).line, StmType::HashMap, {
                 let mut props: HashMap<String, StmtValue> = HashMap::new();
                 props.insert("vals".to_string(), StmtValue::HashMap(vals));
                 props
@@ -805,11 +814,11 @@ impl Parser {
         return match tkn.typ {
             TknType::Ident => {
                 props.insert(String::from("name"), StmtValue::Str(tkn.val));
-                Ok(Stmt::from(StmType::Ident, props))
+                Ok(Stmt::from(self.get(-1).line, StmType::Ident, props))
             }
             TknType::String => {
                 props.insert(String::from("val"), StmtValue::Str(tkn.val));
-                Ok(Stmt::from(StmType::StringLiteral, props))
+                Ok(Stmt::from(self.get(-1).line, StmType::StringLiteral, props))
             }
             TknType::Number => {
                 if (tkn.val.contains(".")) {
@@ -817,22 +826,27 @@ impl Parser {
                         String::from("val"),
                         StmtValue::Float(tkn.val.parse().unwrap()),
                     );
-                    return Ok(Stmt::from(StmType::FloatLiteral, props));
+                    return Ok(Stmt::from(self.get(-1).line, StmType::FloatLiteral, props));
                 }
                 props.insert(
                     String::from("val"),
                     StmtValue::Int(tkn.val.parse().unwrap()),
                 );
-                Ok(Stmt::from(StmType::IntLiteral, props))
+                Ok(Stmt::from(self.get(-1).line, StmType::IntLiteral, props))
             }
             TknType::Keyword(TknKeyword::True) => {
                 props.insert(String::from("val"), StmtValue::Bool(true));
-                Ok(Stmt::from(StmType::BooleanLiteral, props))
+                Ok(Stmt::from(self.get(-1).line, StmType::BooleanLiteral, props))
             }
             TknType::Keyword(TknKeyword::False) => {
                 props.insert(String::from("val"), StmtValue::Bool(false));
-                Ok(Stmt::from(StmType::BooleanLiteral, props))
+                Ok(Stmt::from(self.get(-1).line, StmType::BooleanLiteral, props))
             }
+            TknType::Sys => Ok(Stmt::from(
+                self.get(0).line,
+                StmType::SysIdent,
+                HashMap::new(),
+            )),
             _ => {
                 return Err(SyntaxError {
                     msg: format!("{} Unexpected literal {:?} ", tkn.line, tkn.typ),
@@ -866,10 +880,18 @@ impl Parser {
                 get_stmt_typ!(node.props["val"], StmtValue::Float)
             ),
             StmType::IntLiteral => {
-                println!("{}int: {}",seprator.clone(), get_stmt_typ!(node.props["val"], StmtValue::Int))
+                println!(
+                    "{}int: {}",
+                    seprator.clone(),
+                    get_stmt_typ!(node.props["val"], StmtValue::Int)
+                )
             }
             StmType::StringLiteral => {
-                println!("{}str: {}",seprator.clone(), get_stmt_typ!(&node.props["val"], StmtValue::Str))
+                println!(
+                    "{}str: {}",
+                    seprator.clone(),
+                    get_stmt_typ!(&node.props["val"], StmtValue::Str)
+                )
             }
             StmType::BooleanLiteral => println!(
                 "{}bool: {}",
@@ -881,35 +903,36 @@ impl Parser {
                 seprator.clone(),
                 get_stmt_typ!(&node.props["name"], StmtValue::Str)
             ),
+            StmType::SysIdent => println!("{}sys ident: $", seprator.clone(),),
             StmType::VariableAssignment => {
-                println!("{}variable assignment",seprator);
+                println!("{}variable assignment", seprator);
                 self.print_tree(get_stmt_typ!(&node.props["ident"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["val"]), depth + 1);
             }
             StmType::VariableDeclaration => {
-                println!("{}variable declaration",seprator);
+                println!("{}variable declaration", seprator);
                 self.print_tree(get_stmt_typ!(&node.props["ident"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["val"]), depth + 1);
             }
             StmType::ArthExpr => {
-                print!("{}arth expr",seprator);
+                print!("{}arth expr", seprator);
                 println!(" {}", get_stmt_typ!(&node.props["op"], StmtValue::Str));
                 self.print_tree(get_stmt_typ!(&node.props["lhs"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["rhs"]), depth + 1);
             }
             StmType::BooleanExpr => {
-                print!("{}boolean expr",seprator);
+                print!("{}boolean expr", seprator);
                 println!(" {}", get_stmt_typ!(&node.props["op"], StmtValue::Str));
                 self.print_tree(get_stmt_typ!(&node.props["lhs"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["rhs"]), depth + 1);
             }
             StmType::DotExpr => {
-                println!("{}dot expr",seprator);
+                println!("{}dot expr", seprator);
                 self.print_tree(get_stmt_typ!(&node.props["lhs"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["rhs"]), depth + 1);
             }
             StmType::IfStmt => {
-                println!("{}if stmt",seprator.clone());
+                println!("{}if stmt", seprator.clone());
 
                 // if
                 println!("{}condition", seprator.clone());
@@ -920,7 +943,7 @@ impl Parser {
                 let else_ifs = get_stmt_typ!(&node.props["else_ifs"], StmtValue::Arr);
                 if (!else_ifs.is_empty()) {
                     for else_if in else_ifs {
-                        println!("{}elseif stmt",seprator.clone());
+                        println!("{}elseif stmt", seprator.clone());
                         println!("{}condition", seprator.clone() + space);
                         self.print_tree(get_stmt_typ!(&else_if.props["condition"]), depth + 2);
                         self.print_tree(get_stmt_typ!(&else_if.props["body"]), depth + 1);
@@ -929,7 +952,7 @@ impl Parser {
 
                 // else
                 if (node.props.contains_key("else")) {
-                    println!("{}else stmt",seprator.clone());
+                    println!("{}else stmt", seprator.clone());
                     self.print_tree(
                         get_stmt_typ!(&get_stmt_typ!(&node.props["else"]).props["body"]),
                         depth + 1,
@@ -937,9 +960,9 @@ impl Parser {
                 }
             }
             StmType::ForStmt => {
-                println!("{}for stmt",seprator.clone());
+                println!("{}for stmt", seprator.clone());
 
-                println!("{}decl", seprator.clone() +  space);
+                println!("{}decl", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["decl"]), depth + 2);
 
                 println!("{}condition", seprator.clone() + space);
@@ -952,21 +975,21 @@ impl Parser {
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 2);
             }
             StmType::WhileStmt => {
-                println!("{}while stmt",seprator.clone());
+                println!("{}while stmt", seprator.clone());
                 println!("{}condition", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["condition"]), depth + 2);
-                println!("{}body", seprator.clone()+  space);
+                println!("{}body", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 2);
             }
 
             StmType::FuncDeclaration => {
-                println!("{}func decl",seprator.clone());
+                println!("{}func decl", seprator.clone());
 
                 println!("{}name", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["name"]), depth + 2);
 
                 if node.props.contains_key("arglist") {
-                    println!("{}arglist",seprator.clone());
+                    println!("{}arglist", seprator.clone());
                     self.print_tree(get_stmt_typ!(&node.props["arglist"]), depth + 1);
                 }
                 println!("{}body", seprator.clone() + space);
@@ -974,13 +997,13 @@ impl Parser {
             }
 
             StmType::FuncCall => {
-                println!("{}func call",seprator.clone());
+                println!("{}func call", seprator.clone());
 
                 println!("{}name", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["name"]), depth + 2);
 
                 if node.props.contains_key("arglist") {
-                    println!("{}arglist",seprator.clone());
+                    println!("{}arglist", seprator.clone());
                     self.print_tree(get_stmt_typ!(&node.props["arglist"]), depth + 1);
                 }
             }
@@ -993,11 +1016,11 @@ impl Parser {
             }
 
             StmType::Return => {
-                println!("{}return stmt",seprator.clone());
+                println!("{}return stmt", seprator.clone());
                 self.print_tree(get_stmt_typ!(&node.props["val"]), depth + 1);
             }
             StmType::Arr => {
-                println!("{}arr",seprator.clone());
+                println!("{}arr", seprator.clone());
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::Arr);
                 if vals.len() == 0 {
                     println!("{}empty", seprator.clone() + space);
@@ -1008,7 +1031,7 @@ impl Parser {
                 }
             }
             StmType::HashMap => {
-                println!("{}hashmap",seprator.clone());
+                println!("{}hashmap", seprator.clone());
 
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::HashMap);
 
@@ -1022,7 +1045,7 @@ impl Parser {
                 }
             }
             StmType::StmtBlock => {
-                println!("{}stmt block",seprator.clone());
+                println!("{}stmt block", seprator.clone());
                 match &node.props["body"] {
                     StmtValue::Arr(block) => {
                         if (block.len() == 0) {
