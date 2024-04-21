@@ -171,6 +171,8 @@ impl Parser {
             match typ {
                 TknType::SemiCol => return Err(self.err_expected_char(';')),
                 TknType::CCurl => return Err(self.err_expected_char('}')),
+                TknType::OCurl => return Err(self.err_expected_char('{')),
+                TknType::OSqr => return Err(self.err_expected_char('[')),
                 TknType::CSqr => return Err(self.err_expected_char(']')),
                 _ => return Err(self.err_expected(typ)),
             }

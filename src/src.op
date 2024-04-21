@@ -1,1 +1,51 @@
-let var_a = 5;
+func on_block_init(ID) { 
+    
+}
+func on_block_update(ID) {
+    
+    pos = get_component(ID,Components.Position);  
+    size = get_component(ID,Components.Size);  
+    
+    ball_id = get_entity_by_id(\"ball\");
+    ball_pos = get_component(ball_id,Components.Position);
+    ball_size = get_component(ball_id,Components.Size);
+    ball_data = get_component(ball_id,Components.Storage);
+
+    if(ball_data.collided == 0) {
+          if(AABB(ball_pos.x + ball_data.vel_x,ball_pos.y + ball_data.vel_y,ball_size.w,ball_size.h,pos.x,pos.y,size.w,size.h)) {
+            
+        if(AABB(ball_pos.x + ball_data.vel_x,ball_pos.y,ball_size.w,ball_size.h,pos.x,pos.y,size.w,size.h)) { 
+              ball_data.collided = 1;
+          ball_data.x_dir =  ball_data.x_dir * -1; 
+        }
+        if(ball_data.collided == 0) {
+              if(AABB(ball_pos.x,ball_pos.y + ball_data.vel_y,ball_size.w,ball_size.h,pos.x,pos.y,size.w,size.h)) {
+                ball_data.collided = 1;
+            ball_data.y_dir =  ball_data.y_dir * -1; 
+          }
+        }
+        
+          remove_entity(ID);
+      }
+    }
+}
+
+
+func on_init(ID) {
+        for(i in 0..10) {
+    for(j in 0..5) {
+        id = create_entity(
+              i * 30 + 60,
+          j * 30 + 10,
+          29,
+          29,
+          20,
+          120,
+          255,
+          on_block_init,
+          on_block_update
+        );
+}
+    }
+}
+  func on_update(ID) {}
