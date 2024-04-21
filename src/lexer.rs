@@ -43,6 +43,7 @@ pub enum TknType {
     Equal,
     Comma,
     SemiCol,
+    Dot,
     EOF,
 }
 
@@ -78,7 +79,7 @@ const KEYWORDS: &[&str] = &[
 const ARTH_OPS: &[char] = &['+', '-', '*', '/'];
 const SINGLE_CHAR_BOOL_OPS: &[&str] = &[">", "<"];
 const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "==","!="];
-const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '=',',',':'];
+const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '=',',',':','.'];
 
 pub struct Lexer {
     pub src: String,
@@ -125,7 +126,7 @@ impl Lexer {
         self.errs.push(LexerError {
             col: self.col,
             line: self.line,
-            error: format!("{}:{} {}", self.line, self.col, msg),
+            error: format!("line {}: {}", self.line, msg),
         });
     }
     fn map_keyword(self: &Self, keyword: &String) -> Option<TknKeyword> {
@@ -182,6 +183,7 @@ impl Lexer {
             '[' => Some(TknType::OSqr),
             ',' => Some(TknType::Comma),
             ':' => Some(TknType::Colon),
+            '.' => Some(TknType::Dot),
             _ => None,
         }
     }
@@ -193,7 +195,6 @@ impl Lexer {
 
         while (!self.is_empty()) {
             let mut chr: char = self.next();
-
 
             if (SKIPPABLES.contains(&chr)) {
                 if (chr == '\n') {
@@ -221,7 +222,8 @@ impl Lexer {
                     self.push_tkn(TknType::Ident, word);
                 }
                 self.col += col_offset;
-            } else if chr.is_numeric() {
+            } else if chr.is_numeric() || (['-','+'].contains(&chr) && !self.is_empty() && self.get().is_numeric()  ) {
+                
                 let mut word: String = String::from(chr);
                 let mut col_offset = 1;
                 while !self.is_empty() && self.get().is_numeric() {
@@ -283,7 +285,7 @@ impl Lexer {
                 self.push_tkn(self.map_symbs(&chr).unwrap(), String::from(chr));
                 self.col += 1;
             } else {
-                self.push_err(format!("Unexpected Token '{}'", chr));
+                self.push_err(format!("unexpected character '{}'", chr));
             }
         }
     

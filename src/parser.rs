@@ -1,4 +1,9 @@
-use std::{any::Any, collections::HashMap, fmt::format, vec};
+use std::{
+    any::Any,
+    collections::{btree_map::Values, HashMap},
+    fmt::format,
+    vec,
+};
 
 use crate::lexer::*;
 
@@ -15,6 +20,7 @@ pub enum StmType {
     VariableDeclaration,
     VariableAssignment,
     ArthExpr,
+    DotExpr,
     BooleanExpr,
     IfStmt,
     ElseIfStmt,
@@ -99,15 +105,21 @@ macro_rules! expect_expr {
         match $value {
             Ok(x) => {
                 $out = x;
-            },
-            Err(err) => return Err(
-                $self.err_expected_expr()
-               
-            ),
+            }
+            Err(err) => return Err($self.err_expected_expr()),
         }
     };
 }
 
+macro_rules! expect_semi_colon {
+    ($self: ident,$expect_semi: ident) => {
+        if (*$expect_semi) {
+            *$expect_semi = false;
+            panic_check!($self.expect(TknType::SemiCol));
+            $self.next();
+        }
+    };
+}
 #[derive(Debug)]
 pub struct SyntaxError {
     pub msg: String,
@@ -287,7 +299,7 @@ impl Parser {
         self.next();
         panic_check!(self.expect(TknType::OPara));
         self.next();
-        panic_check!(self.parse_boolean_op(&mut false), condtion);
+        panic_check!(self.parse_fun_call(&mut false), condtion);
         panic_check!(self.expect(TknType::CPara));
         self.next();
         panic_check!(self.parse_stmt_block(), block);
@@ -441,7 +453,7 @@ impl Parser {
         self.next();
         if self.get(0).typ != TknType::SemiCol {
             val_exists = true;
-            expect_expr!(self,self.parse_arth_op_add(&mut false), val);
+            expect_expr!(self, self.parse_arth_op_add(&mut false), val);
         }
         panic_check!(self.expect(TknType::SemiCol));
         self.next();
@@ -463,11 +475,9 @@ impl Parser {
         self.next();
         while !self.is_empty(0) && self.get(0).typ != TknType::CCurl {
             panic_check!(self.parse_statement(), stmt);
-            println!("asdasdsad {:?}",stmt);
             stmts.push(stmt);
         }
-        
-        
+
         panic_check!(self.expect(TknType::CCurl));
         self.next();
 
@@ -521,6 +531,7 @@ impl Parser {
             }
             panic_check!(self.expect(TknType::CPara));
             self.next();
+
             if *expect_semi {
                 *expect_semi = false;
                 panic_check!(self.expect(TknType::SemiCol));
@@ -542,38 +553,30 @@ impl Parser {
         self: &mut Self,
         expect_semi: &mut bool,
     ) -> Result<Stmt, SyntaxError> {
-        if self.get(0).typ == TknType::Ident
-            && !self.is_empty(1)
-            && self.get(1).typ == TknType::Equal
-        {
-            let mut ident: Stmt;
-            let mut val: Stmt;
+        let mut stmt;
+        panic_check!(self.parse_arth_op_add(&mut false), stmt);
 
-            panic_check!(self.parse_literal(), ident);
-            panic_check!(self.expect(TknType::Equal));
+        if (!self.is_empty(0) && self.get(0).typ == TknType::Equal) {
             self.next();
+
+            let mut val: Stmt;
             panic_check!(self.parse_fun_call(&mut false), val);
 
-            if (*expect_semi) {
-                *expect_semi = false;
-                panic_check!(self.expect(TknType::SemiCol));
-                self.next();
-            }
-
-            return Ok(Stmt::from(StmType::VariableAssignment, {
+            stmt = Stmt::from(StmType::VariableAssignment, {
                 let mut props: HashMap<String, StmtValue> = HashMap::new();
-                props.insert(String::from("ident"), StmtValue::Stmt(ident));
+                props.insert(String::from("ident"), StmtValue::Stmt(stmt));
                 props.insert(String::from("val"), StmtValue::Stmt(val));
                 props
-            }));
+            });
         }
-        return self.parse_arth_op_add(expect_semi);
+
+        expect_semi_colon!(self, expect_semi);
+        return Ok(stmt);
     }
     fn parse_arth_op_add(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
         let mut stmt: Stmt;
 
-
-        expect_expr!(self,self.parse_arth_op_mult(&mut false),stmt);
+        expect_expr!(self, self.parse_arth_op_mult(&mut false), stmt);
 
         if !self.is_empty(0)
             && (self.get(0).typ == TknType::Plus || self.get(0).typ == TknType::Minus)
@@ -584,7 +587,7 @@ impl Parser {
                 let rhs: Stmt;
                 let op: String = self.next().val;
 
-                expect_expr!(self,self.parse_arth_op_mult(&mut false),rhs);
+                expect_expr!(self, self.parse_arth_op_mult(&mut false), rhs);
 
                 stmt = Stmt::from(StmType::ArthExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
@@ -638,7 +641,7 @@ impl Parser {
     }
     fn parse_boolean_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
         let mut stmt: Stmt;
-        panic_check!(self.parse_grouping(), stmt);
+        panic_check!(self.parse_dot_op(expect_semi), stmt);
 
         if !self.is_empty(0)
             && [
@@ -668,7 +671,7 @@ impl Parser {
             {
                 let op: String = self.next().val;
                 let rhs: Stmt;
-                panic_check!(self.parse_grouping(), rhs);
+                panic_check!(self.parse_dot_op(expect_semi), rhs);
 
                 stmt = Stmt::from(StmType::BooleanExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
@@ -687,6 +690,36 @@ impl Parser {
         }
         return Ok(stmt);
     }
+
+    fn parse_dot_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+        let mut stmt: Stmt;
+        panic_check!(self.parse_grouping(), stmt);
+
+        if (self.get(0).typ == TknType::Dot) {
+            while !self.is_empty(0) && self.get(0).typ == TknType::Dot {
+                self.next();
+
+                let rhs: Stmt;
+                panic_check!(self.parse_dot_op(expect_semi), rhs);
+
+                stmt = Stmt::from(StmType::DotExpr, {
+                    let mut props: HashMap<String, StmtValue> = HashMap::new();
+                    props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
+                    props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                    props
+                });
+            }
+        }
+
+        if *expect_semi {
+            *expect_semi = false;
+            panic_check!(self.expect(TknType::SemiCol));
+            self.next();
+        }
+
+        return Ok(stmt);
+    }
+
     fn parse_grouping(self: &mut Self) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::OPara {
             let stmt: Stmt;
@@ -813,7 +846,6 @@ impl Parser {
     pub fn print_tree(self: &Self, node: &Stmt, depth: u64) {
         let space: &str = "   ";
         let seprator: String = space.repeat(depth as usize);
-        print!("{}", seprator);
 
         match node.typ {
             StmType::Program => {
@@ -829,51 +861,58 @@ impl Parser {
             StmType::EOP => println!("\nend"),
 
             StmType::FloatLiteral => println!(
-                "float: {}",
+                "{}float: {}",
+                seprator.clone(),
                 get_stmt_typ!(node.props["val"], StmtValue::Float)
             ),
             StmType::IntLiteral => {
-                println!("int: {}", get_stmt_typ!(node.props["val"], StmtValue::Int))
+                println!("{}int: {}",seprator.clone(), get_stmt_typ!(node.props["val"], StmtValue::Int))
             }
             StmType::StringLiteral => {
-                println!("str: {}", get_stmt_typ!(&node.props["val"], StmtValue::Str))
+                println!("{}str: {}",seprator.clone(), get_stmt_typ!(&node.props["val"], StmtValue::Str))
             }
             StmType::BooleanLiteral => println!(
-                "bool: {}",
+                "{}bool: {}",
+                seprator.clone(),
                 get_stmt_typ!(&node.props["val"], StmtValue::Bool)
             ),
             StmType::Ident => println!(
-                "ident: {}",
+                "{}ident: {}",
+                seprator.clone(),
                 get_stmt_typ!(&node.props["name"], StmtValue::Str)
             ),
             StmType::VariableAssignment => {
-                println!("variable assignment");
+                println!("{}variable assignment",seprator);
                 self.print_tree(get_stmt_typ!(&node.props["ident"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["val"]), depth + 1);
             }
             StmType::VariableDeclaration => {
-                println!("variable declaration");
+                println!("{}variable declaration",seprator);
                 self.print_tree(get_stmt_typ!(&node.props["ident"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["val"]), depth + 1);
             }
             StmType::ArthExpr => {
-                print!("arth expr");
+                print!("{}arth expr",seprator);
                 println!(" {}", get_stmt_typ!(&node.props["op"], StmtValue::Str));
                 self.print_tree(get_stmt_typ!(&node.props["lhs"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["rhs"]), depth + 1);
             }
             StmType::BooleanExpr => {
-                print!("boolean expr");
+                print!("{}boolean expr",seprator);
                 println!(" {}", get_stmt_typ!(&node.props["op"], StmtValue::Str));
                 self.print_tree(get_stmt_typ!(&node.props["lhs"]), depth + 1);
                 self.print_tree(get_stmt_typ!(&node.props["rhs"]), depth + 1);
             }
-
+            StmType::DotExpr => {
+                println!("{}dot expr",seprator);
+                self.print_tree(get_stmt_typ!(&node.props["lhs"]), depth + 1);
+                self.print_tree(get_stmt_typ!(&node.props["rhs"]), depth + 1);
+            }
             StmType::IfStmt => {
-                println!("if stmt");
+                println!("{}if stmt",seprator.clone());
 
                 // if
-                println!("{}condition", space.repeat((depth + 1) as usize));
+                println!("{}condition", seprator.clone());
                 self.print_tree(get_stmt_typ!(&node.props["condition"]), depth + 2);
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 1);
 
@@ -881,8 +920,8 @@ impl Parser {
                 let else_ifs = get_stmt_typ!(&node.props["else_ifs"], StmtValue::Arr);
                 if (!else_ifs.is_empty()) {
                     for else_if in else_ifs {
-                        println!("elseif stmt");
-                        println!("{}condition", space.repeat((depth + 1) as usize));
+                        println!("{}elseif stmt",seprator.clone());
+                        println!("{}condition", seprator.clone() + space);
                         self.print_tree(get_stmt_typ!(&else_if.props["condition"]), depth + 2);
                         self.print_tree(get_stmt_typ!(&else_if.props["body"]), depth + 1);
                     }
@@ -890,7 +929,7 @@ impl Parser {
 
                 // else
                 if (node.props.contains_key("else")) {
-                    println!("else stmt");
+                    println!("{}else stmt",seprator.clone());
                     self.print_tree(
                         get_stmt_typ!(&get_stmt_typ!(&node.props["else"]).props["body"]),
                         depth + 1,
@@ -898,50 +937,50 @@ impl Parser {
                 }
             }
             StmType::ForStmt => {
-                println!("for stmt");
+                println!("{}for stmt",seprator.clone());
 
-                println!("{}decl", space.repeat((depth + 1) as usize));
+                println!("{}decl", seprator.clone() +  space);
                 self.print_tree(get_stmt_typ!(&node.props["decl"]), depth + 2);
 
-                println!("{}condition", space.repeat((depth + 1) as usize));
+                println!("{}condition", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["condition"]), depth + 2);
 
-                println!("{}action", space.repeat((depth + 1) as usize));
+                println!("{}action", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["action"]), depth + 2);
 
-                println!("{}body", space.repeat((depth + 1) as usize));
+                println!("{}body", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 2);
             }
             StmType::WhileStmt => {
-                println!("while stmt");
-                println!("{}condition", space.repeat((depth + 1) as usize));
+                println!("{}while stmt",seprator.clone());
+                println!("{}condition", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["condition"]), depth + 2);
-                println!("{}body", space.repeat((depth + 1) as usize));
+                println!("{}body", seprator.clone()+  space);
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 2);
             }
 
             StmType::FuncDeclaration => {
-                println!("func decl");
+                println!("{}func decl",seprator.clone());
 
-                println!("{}name", space.repeat((depth + 1) as usize));
+                println!("{}name", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["name"]), depth + 2);
 
                 if node.props.contains_key("arglist") {
-                    println!("arglist");
+                    println!("{}arglist",seprator.clone());
                     self.print_tree(get_stmt_typ!(&node.props["arglist"]), depth + 1);
                 }
-                println!("{}body", space.repeat((depth + 1) as usize));
+                println!("{}body", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 2);
             }
 
             StmType::FuncCall => {
-                println!("func call");
+                println!("{}func call",seprator.clone());
 
-                println!("{}name", space.repeat((depth + 1) as usize));
+                println!("{}name", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["name"]), depth + 2);
 
                 if node.props.contains_key("arglist") {
-                    println!("arglist");
+                    println!("{}arglist",seprator.clone());
                     self.print_tree(get_stmt_typ!(&node.props["arglist"]), depth + 1);
                 }
             }
@@ -954,14 +993,14 @@ impl Parser {
             }
 
             StmType::Return => {
-                println!("return stmt");
+                println!("{}return stmt",seprator.clone());
                 self.print_tree(get_stmt_typ!(&node.props["val"]), depth + 1);
             }
             StmType::Arr => {
-                println!("arr");
+                println!("{}arr",seprator.clone());
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::Arr);
                 if vals.len() == 0 {
-                    println!("{}empty", space.repeat((depth + 1) as usize));
+                    println!("{}empty", seprator.clone() + space);
                 } else {
                     for val in vals {
                         self.print_tree(val, depth + 1);
@@ -969,12 +1008,12 @@ impl Parser {
                 }
             }
             StmType::HashMap => {
-                println!("hashmap");
+                println!("{}hashmap",seprator.clone());
 
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::HashMap);
 
                 if vals.len() == 0 {
-                    println!("{}empty", space.repeat((depth + 1) as usize));
+                    println!("{}empty", seprator.clone() + space);
                 } else {
                     for val in vals {
                         self.print_tree(&val[0], depth + 1);
@@ -983,11 +1022,11 @@ impl Parser {
                 }
             }
             StmType::StmtBlock => {
-                println!("stmt block");
+                println!("{}stmt block",seprator.clone());
                 match &node.props["body"] {
                     StmtValue::Arr(block) => {
                         if (block.len() == 0) {
-                            println!("{}empty", space.repeat((depth + 1) as usize))
+                            println!("{}empty", seprator.clone() + space)
                         } else {
                             for stmt in block {
                                 self.print_tree(stmt, depth + 1);

@@ -16,18 +16,15 @@ fn main() {
 
 
     let mut lexer: Lexer = Lexer::new();
-    // lexer.tokenize(&src);
-    // for tkn in lexer.tknz {
-    //     println!("{:?}",tkn);
-    // }
+    lexer.tokenize(&src);
 
-    // if (lexer.errs.len() > 0) {
-    //     println!("Lexer found {} errs", lexer.errs.len());
-    //     for lex_err in lexer.errs {
-    //         println!("{}", lex_err.error);
-    //     }
-    //     return;
-    // }
+    if (lexer.errs.len() > 0) {
+        println!("Lexer found {} errs", lexer.errs.len());
+        for lex_err in lexer.errs {
+            println!("{}", lex_err.error);
+        }
+        return;
+    }
 
 
     
