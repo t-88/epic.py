@@ -225,10 +225,6 @@ impl Transpiler {
                             unreachable!();
                         }
                     }
-                    // let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false);
-                    // println!("{}", rhs);
-                    // assert!(self.js_prebuilds.contains_key(rhs.as_str()));
-                    // return self.js_prebuilds[rhs.as_str()].name;
                 } else {
                     let lhs = self.js_transpiler(get_stmt_typ!(&node.props["lhs"]), 0, &mut false);
                     let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false);

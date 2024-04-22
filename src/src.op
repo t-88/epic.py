@@ -1,2 +1,12 @@
-$.log("asdjkaskjd");
-a.log("asd").c;
+func hello(a, b = 1.5, c = 'ur mom', d = [6,2],k ={b : 2, z : [2,2,"aasdsd"]}) {
+}
+
+func qwe(a)  {
+}
+
+
+func qwexc()  {
+}
+
+
+hello(1,c = 5,b="asd");

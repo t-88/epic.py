@@ -987,7 +987,6 @@ impl Parser {
                 println!("{}body", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 2);
             }
-
             StmType::FuncDeclaration => {
                 println!("{}func decl", seprator.clone());
 
@@ -1001,7 +1000,6 @@ impl Parser {
                 println!("{}body", seprator.clone() + space);
                 self.print_tree(get_stmt_typ!(&node.props["body"]), depth + 2);
             }
-
             StmType::FuncCall => {
                 println!("{}func call", seprator.clone());
 
@@ -1013,14 +1011,12 @@ impl Parser {
                     self.print_tree(get_stmt_typ!(&node.props["arglist"]), depth + 1);
                 }
             }
-
             StmType::ArgList => {
                 let args = get_stmt_typ!(&node.props["list"], StmtValue::Arr);
                 for arg in args {
                     self.print_tree(arg, depth + 1);
                 }
             }
-
             StmType::Return => {
                 println!("{}return stmt", seprator.clone());
                 self.print_tree(get_stmt_typ!(&node.props["val"]), depth + 1);

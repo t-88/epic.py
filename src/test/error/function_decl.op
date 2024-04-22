@@ -1,0 +1,4 @@
+func hello(a = 15, b , c = 'ur mom', d = 6) {
+}
+
+hello(1);

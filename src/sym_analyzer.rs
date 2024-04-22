@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use crate::{get_stmt_typ, parser::*, TknType};
-
+use crate::*;
+use meta::meta::*;
+use std::{collections::HashMap, fmt::format, vec};
 
 //TODO: Handle prebuild function, idents
 //TODO: Handle arg count
 
-#[derive(Debug, PartialEq, Eq,Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbType {
     Null,
     String,
@@ -14,12 +14,13 @@ pub enum SymbType {
     Array,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 struct SymbData {
-    name: String,
-    is_func: bool,
-    typ: SymbType,
-    attrs: HashMap<String, SymbData>,
+    pub name: String,
+    pub typ: SymbType,
+    pub attrs: HashMap<String, SymbData>,
+    pub is_func: bool,
+    pub func_data: FuncData,
 }
 
 impl SymbData {
@@ -29,6 +30,7 @@ impl SymbData {
             is_func: false,
             typ: SymbType::Null,
             attrs: HashMap::new(),
+            func_data: FuncData::new("".to_string(), &vec![], &vec![]),
         };
     }
 
@@ -39,10 +41,11 @@ impl SymbData {
         data
     }
 
-    fn func(name: String) -> SymbData {
+    fn func(name: String, func_data: FuncData) -> SymbData {
         let mut data = SymbData::new();
         data.name = name;
         data.is_func = true;
+        data.func_data = func_data;
         data
     }
 }
@@ -118,7 +121,6 @@ impl ScopeStack {
             }
         }
 
-        
         let tmp_idx = self.cur_scope;
         self.cur_scope = saved_scope;
 
@@ -134,17 +136,19 @@ impl ScopeStack {
 
 pub struct SymenticAnal {
     scope_stk: ScopeStack,
+    meta: Meta,
 }
 
 impl SymenticAnal {
     pub fn new() -> Self {
         SymenticAnal {
             scope_stk: ScopeStack::new(),
+            meta: Meta::init(),
         }
     }
     pub fn analyse(self: &mut Self, program: &Stmt) {
         assert!(program.typ == StmType::Program);
-        self.analyse_variables(program);
+        self.analyze(program);
     }
 
     pub fn get_val_typ(self: &Self, stmt: &Stmt) -> SymbType {
@@ -164,8 +168,7 @@ impl SymenticAnal {
             StmType::Arr => {
                 return SymbType::Array;
             }
-            _ => {
-            }
+            _ => {}
         }
         return SymbType::Null;
     }
@@ -185,14 +188,93 @@ impl SymenticAnal {
             attrs.insert(attr.name.clone(), attr);
         }
     }
+    fn from_literal_to_str(&self, stmt: &Stmt) -> String {
+        match stmt.typ {
+            StmType::StringLiteral => {
+                format!("{:?}", get_stmt_typ!(&stmt.props["val"], StmtValue::Str))
+            }
+            StmType::FloatLiteral => get_stmt_typ!(&stmt.props["val"], StmtValue::Float)
+                .to_string()
+                .clone(),
+            StmType::IntLiteral => get_stmt_typ!(&stmt.props["val"], StmtValue::Int)
+                .to_string()
+                .clone(),
+            StmType::Ident => get_stmt_typ!(&stmt.props["name"], StmtValue::Str).clone(),
+            StmType::Arr => {
+                let mut vals: Vec<String> = vec![];
+                let arr = get_stmt_typ!(&stmt.props["vals"], StmtValue::Arr);
+                for elm in arr {
+                    vals.push(self.from_literal_to_str(elm));
+                }
+                format!("{:?}", vals)
+            }
+            StmType::HashMap => {
+                let mut out: String = "{".to_string();
+                let arr = get_stmt_typ!(&stmt.props["vals"], StmtValue::HashMap);
+                for i in 0..arr.len() {
+                    out += format!(
+                        "{:?} : {}",
+                        self.from_literal_to_str(&arr[i][0]),
+                        self.from_literal_to_str(&arr[i][1])
+                    )
+                    .as_str();
+                    if (i != arr.len() - 1) {
+                        out += ",";
+                    }
+                }
+                out += "}";
 
-    fn analyse_variables(self: &mut Self, node: &Stmt) {
+                out
+            }
+
+            _ => {
+                println!("{:?}", stmt);
+                unreachable!()
+            }
+        }
+    }
+    fn parse_arglist(&self, node: &Stmt) -> (Vec<ArgInfo>, Vec<ArgInfo>) {
+        let args = get_stmt_typ!(&node.props["list"], StmtValue::Arr);
+
+        let mut optional_arg: Vec<ArgInfo> = vec![];
+        let mut required_arg: Vec<ArgInfo> = vec![];
+
+        for stmt in args {
+            match stmt.typ {
+                StmType::VariableAssignment => {
+                    let name = get_stmt_typ!(
+                        &get_stmt_typ!(&stmt.props["ident"]).props["name"],
+                        StmtValue::Str
+                    )
+                    .clone();
+
+                    let mut val: String =
+                        self.from_literal_to_str(get_stmt_typ!(&stmt.props["val"]));
+                    optional_arg.push(ArgInfo::not_required(name, val));
+                }
+                StmType::Ident
+                | StmType::Arr
+                | StmType::IntLiteral
+                | StmType::HashMap
+                | StmType::FloatLiteral
+                | StmType::StringLiteral => {
+                    required_arg.push(ArgInfo::required(self.from_literal_to_str(stmt)));
+                }
+                _ => {
+                    unreachable!()
+                }
+            }
+        }
+        return (required_arg, optional_arg);
+    }
+
+    fn analyze(self: &mut Self, node: &Stmt) {
         match node.typ {
             StmType::Program => {
                 self.scope_stk.push_scope();
                 let body: &Vec<Stmt> = get_stmt_typ!(&node.props["body"], StmtValue::Arr);
                 for stmt in body {
-                    self.analyse_variables(stmt);
+                    self.analyze(stmt);
                 }
             }
             StmType::EOP => {}
@@ -203,11 +285,11 @@ impl SymenticAnal {
             StmType::Ident => {
                 let ident_name = get_stmt_typ!(&node.props["name"], StmtValue::Str);
                 if (!self.scope_stk.check_symb(ident_name)) {
-                    println!("line {}: variable '{}' not declared",node.line, ident_name);
+                    println!("line {}: variable '{}' not declared", node.line, ident_name);
                 }
             }
             StmType::VariableDeclaration => {
-                self.analyse_variables(get_stmt_typ!(&node.props["val"]));
+                self.analyze(get_stmt_typ!(&node.props["val"]));
 
                 let mut data = SymbData::variable(
                     get_stmt_typ!(
@@ -225,117 +307,179 @@ impl SymenticAnal {
                 self.scope_stk.push_symb(data);
             }
             StmType::VariableAssignment => {
-                self.analyse_variables(get_stmt_typ!(&node.props["ident"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["val"]));
+                self.analyze(get_stmt_typ!(&node.props["ident"]));
+                self.analyze(get_stmt_typ!(&node.props["val"]));
             }
             StmType::ArthExpr => {
-                self.analyse_variables(get_stmt_typ!(&node.props["lhs"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["rhs"]));
+                self.analyze(get_stmt_typ!(&node.props["lhs"]));
+                self.analyze(get_stmt_typ!(&node.props["rhs"]));
             }
             StmType::BooleanExpr => {
-                self.analyse_variables(get_stmt_typ!(&node.props["lhs"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["rhs"]));
+                self.analyze(get_stmt_typ!(&node.props["lhs"]));
+                self.analyze(get_stmt_typ!(&node.props["rhs"]));
             }
             StmType::DotExpr => {
+                if (get_stmt_typ!(&node.props["lhs"]).typ == StmType::SysIdent) {
+                    let rhs = get_stmt_typ!(&node.props["rhs"]);
+                    match rhs.typ {
+                        StmType::FuncCall => {
+                            unreachable!();
+                        }
+                        StmType::Ident => {
+                            unreachable!();
+                        }
+                        _ => {
+                            println!("line {}: system only accesses variables or functions you tried to access {:?}",rhs.line,rhs.typ);
+                        }
+                    }
+                }
             }
-
             StmType::IfStmt => {
-                self.analyse_variables(get_stmt_typ!(&node.props["condition"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["body"]));
+                self.analyze(get_stmt_typ!(&node.props["condition"]));
+                self.analyze(get_stmt_typ!(&node.props["body"]));
 
                 let else_ifs = get_stmt_typ!(&node.props["else_ifs"], StmtValue::Arr);
                 for else_if in else_ifs {
-                    self.analyse_variables(get_stmt_typ!(
-                        &else_if.props["condition"],
-                        StmtValue::Stmt
-                    ));
-                    self.analyse_variables(get_stmt_typ!(&else_if.props["body"]));
+                    self.analyze(get_stmt_typ!(&else_if.props["condition"], StmtValue::Stmt));
+                    self.analyze(get_stmt_typ!(&else_if.props["body"]));
                 }
 
                 // else
                 if (node.props.contains_key("else")) {
-                    self.analyse_variables(get_stmt_typ!(
+                    self.analyze(get_stmt_typ!(
                         &get_stmt_typ!(&node.props["else"]).props["body"]
                     ));
                 }
             }
             StmType::ForStmt => {
                 self.scope_stk.push_scope();
-                self.analyse_variables(get_stmt_typ!(&node.props["decl"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["condition"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["action"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["body"]));
+                self.analyze(get_stmt_typ!(&node.props["decl"]));
+                self.analyze(get_stmt_typ!(&node.props["condition"]));
+                self.analyze(get_stmt_typ!(&node.props["action"]));
+                self.analyze(get_stmt_typ!(&node.props["body"]));
                 self.scope_stk.pop_scope();
             }
             StmType::WhileStmt => {
-                self.analyse_variables(get_stmt_typ!(&node.props["condition"]));
-                self.analyse_variables(get_stmt_typ!(&node.props["body"]));
+                self.analyze(get_stmt_typ!(&node.props["condition"]));
+                self.analyze(get_stmt_typ!(&node.props["body"]));
             }
             StmType::FuncDeclaration => {
-                self.scope_stk.push_symb(SymbData::func(
-                    get_stmt_typ!(
-                        &get_stmt_typ!(&node.props["name"]).props["name"],
-                        StmtValue::Str
-                    )
-                    .clone(),
-                ));
                 self.scope_stk.push_scope();
 
+                let mut required_arg: Vec<ArgInfo> = vec![];
+                let mut optional_arg: Vec<ArgInfo> = vec![];
+
+                let mut args: &Vec<Stmt>;
+
                 if node.props.contains_key("arglist") {
-                    let list = get_stmt_typ!(
+                    args = get_stmt_typ!(
                         &get_stmt_typ!(&node.props["arglist"]).props["list"],
                         StmtValue::Arr
                     );
 
-                    for stmt in list {
+                    for stmt in args {
                         match stmt.typ {
                             StmType::VariableAssignment => {
+                                let name = get_stmt_typ!(
+                                    &get_stmt_typ!(&stmt.props["ident"]).props["name"],
+                                    StmtValue::Str
+                                )
+                                .clone();
                                 self.scope_stk.push_symb(SymbData::variable(
-                                    get_stmt_typ!(
-                                        &get_stmt_typ!(&stmt.props["ident"]).props["name"],
-                                        StmtValue::Str
-                                    )
-                                    .clone(),
+                                    name.clone(),
                                     self.get_val_typ(get_stmt_typ!(&stmt.props["val"])),
                                 ));
+
+                                let mut val: String =
+                                    self.from_literal_to_str(get_stmt_typ!(&stmt.props["val"]));
+                                optional_arg.push(ArgInfo::not_required(name, val));
                             }
                             StmType::Ident => {
-                                self.scope_stk.push_symb(SymbData::variable(
-                                    get_stmt_typ!(&stmt.props["name"], StmtValue::Str).clone(),
-                                    SymbType::Null,
-                                ));
+                                let name =
+                                    get_stmt_typ!(&stmt.props["name"], StmtValue::Str).clone();
+                                self.scope_stk
+                                    .push_symb(SymbData::variable(name.clone(), SymbType::Null));
+                                required_arg.push(ArgInfo::required(name.clone()));
                             }
                             _ => unreachable!(),
                         }
                     }
                 }
-
-                self.analyse_variables(get_stmt_typ!(&node.props["body"]));
-
+                self.analyze(get_stmt_typ!(&node.props["body"]));
                 self.scope_stk.pop_scope();
+
+                let func_name = get_stmt_typ!(
+                    &get_stmt_typ!(&node.props["name"]).props["name"],
+                    StmtValue::Str
+                )
+                .clone();
+                self.scope_stk.push_symb(SymbData::func(
+                    func_name.clone(),
+                    FuncData::new(func_name.clone(), &required_arg, &optional_arg),
+                ));
             }
             StmType::ArgList => {
                 let list = get_stmt_typ!(&node.props["list"], StmtValue::Arr);
                 for stmt in list {
-                    self.analyse_variables(stmt);
+                    // skip optional args
+                    if stmt.typ != StmType::VariableAssignment {
+                        self.analyze(stmt);
+                    }
                 }
             }
             StmType::FuncCall => {
-                if node.props.contains_key("arglsit") {
-                    self.analyse_variables(get_stmt_typ!(&node.props["arglist"]));
+                if node.props.contains_key("arglist") {
+                    self.analyze(get_stmt_typ!(&node.props["arglist"]));
                 }
 
-                self.analyse_variables(get_stmt_typ!(&node.props["name"]));
+                self.analyze(get_stmt_typ!(&node.props["name"]));
                 let func_name = get_stmt_typ!(
                     &get_stmt_typ!(&node.props["name"]).props["name"],
                     StmtValue::Str
                 );
 
-                if(!self.scope_stk.check_symb(&func_name)) {
+                if (!self.scope_stk.check_symb(&func_name)) {
                     println!("function '{}' not declared", func_name);
-                } else  {
-                    if(!self.scope_stk.get_symb(func_name).is_func) {
+                } else {
+                    if (!self.scope_stk.get_symb(&func_name).is_func) {
                         println!("variable '{}' is not callable", func_name);
+                    }
+                }
+
+                let symb = self.scope_stk.get_symb(&func_name);
+                let mut required_args: Vec<ArgInfo> = vec![];
+                let mut optional_args: Vec<ArgInfo> = vec![];
+
+                if (node.props.contains_key("arglist")) {
+                    (required_args, optional_args) =
+                        self.parse_arglist(get_stmt_typ!(&node.props["arglist"]));
+                }
+
+                // wrong number of required args
+                if symb.func_data.required_args.len() != required_args.len() {
+                    if symb.func_data.required_args.len() == 0
+                        || symb.func_data.required_args.len() == 1
+                    {
+                        println!("line {}: wrong number of arguments for function '{}', {} is required but got {}",node.line,func_name,symb.func_data.required_args.len(),required_args.len());
+                    } else {
+                        println!("line {}: wrong number of arguments for function '{}', {} are required but got {}",node.line,func_name,symb.func_data.required_args.len(),required_args.len());
+                    }
+                }
+
+                if node.props.contains_key("arglist") {
+                    // check optional args
+                    let mut func_optional_args: Vec<String> = vec![];
+                    for i in 0..symb.func_data.optional_args.len() {
+                        func_optional_args.push(symb.func_data.optional_args[i].name.clone());
+                    }
+
+                    for arg in &optional_args {
+                        if !func_optional_args.contains(&arg.name) {
+                            println!(
+                                "line {}: unknown optional argument provided '{}'",
+                                node.line, arg.name
+                            );
+                        }
                     }
                 }
             }
@@ -344,30 +488,28 @@ impl SymenticAnal {
                 self.scope_stk.push_scope();
                 let body: &Vec<Stmt> = get_stmt_typ!(&node.props["body"], StmtValue::Arr);
                 for stmt in body {
-                    self.analyse_variables(stmt);
+                    self.analyze(stmt);
                 }
                 self.scope_stk.pop_scope();
             }
 
             StmType::Return => {
-                self.analyse_variables(get_stmt_typ!(&node.props["val"]));
+                self.analyze(get_stmt_typ!(&node.props["val"]));
             }
             StmType::Arr => {
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::Arr);
                 for val in vals {
-                    self.analyse_variables(&val);
+                    self.analyze(&val);
                 }
             }
             StmType::GroupExpr => {
-                self.analyse_variables(get_stmt_typ!(&node.props["val"], StmtValue::Stmt));
+                self.analyze(get_stmt_typ!(&node.props["val"], StmtValue::Stmt));
             }
-
-
 
             StmType::HashMap => {
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::HashMap);
                 for val in vals {
-                    self.analyse_variables(&val[1]);
+                    self.analyze(&val[1]);
                 }
             }
 
