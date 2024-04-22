@@ -1,4 +1,2 @@
-func hello(a = 15, b , c = 'ur mom', d = 6) {
-    'hello';
-    return false;
-}
+$.log("asdjkaskjd");
+a.log("asd").c;

@@ -35,6 +35,7 @@ pub enum StmType {
     Empty,
     Arr,
     HashMap,
+    GroupExpr,
 }
 #[derive(Debug)]
 pub enum StmtValue {
@@ -731,14 +732,19 @@ impl Parser {
 
     fn parse_grouping(self: &mut Self) -> Result<Stmt, SyntaxError> {
         if self.get(0).typ == TknType::OPara {
-            let stmt: Stmt;
+            let mut  stmt: Stmt;
 
             self.next();
             panic_check!(self.parse_arth_op_add(&mut false), stmt);
             panic_check!(self.expect(TknType::CPara));
             self.next();
 
-            return Ok(stmt);
+            stmt = Stmt::from(self.get(-1).line, StmType::GroupExpr, {
+                let mut props: HashMap<String, StmtValue> = HashMap::new();
+                props.insert(String::from("val"), StmtValue::Stmt(stmt));
+                props
+            });
+            return  Ok(stmt);
         }
 
         return self.parse_array_notation();

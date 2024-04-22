@@ -1,6 +1,9 @@
 use std::collections::HashMap;
-
 use crate::{get_stmt_typ, parser::*, TknType};
+
+
+//TODO: Handle prebuild function, idents
+//TODO: Handle arg count
 
 #[derive(Debug, PartialEq, Eq,Clone)]
 pub enum SymbType {
@@ -115,8 +118,7 @@ impl ScopeStack {
             }
         }
 
-        assert!(found);
-
+        
         let tmp_idx = self.cur_scope;
         self.cur_scope = saved_scope;
 
@@ -294,7 +296,7 @@ impl SymenticAnal {
                                         StmtValue::Str
                                     )
                                     .clone(),
-                                    self.get_val_typ(get_stmt_typ!(&node.props["val"])),
+                                    self.get_val_typ(get_stmt_typ!(&stmt.props["val"])),
                                 ));
                             }
                             StmType::Ident => {
@@ -328,8 +330,13 @@ impl SymenticAnal {
                     &get_stmt_typ!(&node.props["name"]).props["name"],
                     StmtValue::Str
                 );
-                if (self.scope_stk.get_symb(func_name).is_func) {
-                    println!("variable '{}' is not callable", func_name);
+
+                if(!self.scope_stk.check_symb(&func_name)) {
+                    println!("function '{}' not declared", func_name);
+                } else  {
+                    if(!self.scope_stk.get_symb(func_name).is_func) {
+                        println!("variable '{}' is not callable", func_name);
+                    }
                 }
             }
 
@@ -351,6 +358,12 @@ impl SymenticAnal {
                     self.analyse_variables(&val);
                 }
             }
+            StmType::GroupExpr => {
+                self.analyse_variables(get_stmt_typ!(&node.props["val"], StmtValue::Stmt));
+            }
+
+
+
             StmType::HashMap => {
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::HashMap);
                 for val in vals {

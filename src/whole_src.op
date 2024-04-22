@@ -6,7 +6,7 @@ func on_init(ID){}
     data.collided = 0;
 
 
-  let scene_id = $.$.get_entity_by_id("Main-Scene");
+  let scene_id = $.get_entity_by_id("Main-Scene");
   let scene_size = $.get_component(scene_id,Components.Size);  
   
   if(pos.x < 0) {

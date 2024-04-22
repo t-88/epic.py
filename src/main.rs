@@ -39,7 +39,7 @@ fn main() {
         }
         return;
     }
-    // parser.print_tree(&parser.program, 0);
+    parser.print_tree(&parser.program, 0);
 
     let mut analyzer: SymenticAnal =  SymenticAnal::new();
     analyzer.analyse(&parser.program);
