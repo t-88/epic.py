@@ -124,10 +124,12 @@ impl ScopeStack {
         let tmp_idx = self.cur_scope;
         self.cur_scope = saved_scope;
 
+
         return self.scopes[tmp_idx as usize].symbs[name].clone();
     }
 
     fn push_symb(self: &mut Self, data: SymbData) {
+        assert!(self.cur_scope != -1);
         self.scopes[self.cur_scope as usize]
             .symbs
             .insert(data.name.clone(), data);
@@ -148,7 +150,15 @@ impl SymenticAnal {
     }
     pub fn analyse(self: &mut Self, program: &Stmt) {
         assert!(program.typ == StmType::Program);
+
+        self.scope_stk.push_scope();
+        for i in &self.meta.functions {
+            self.scope_stk.push_symb(SymbData::func(format!("$.{}",i.0) , i.1.to_owned()));
+        }
+
         self.analyze(program);
+        self.scope_stk.pop_scope();
+        
     }
 
     pub fn get_val_typ(self: &Self, stmt: &Stmt) -> SymbType {
@@ -323,7 +333,7 @@ impl SymenticAnal {
                     let rhs = get_stmt_typ!(&node.props["rhs"]);
                     match rhs.typ {
                         StmType::FuncCall => {
-                            unreachable!();
+                            self.analyze(rhs);
                         }
                         StmType::Ident => {
                             unreachable!();
@@ -364,6 +374,16 @@ impl SymenticAnal {
                 self.analyze(get_stmt_typ!(&node.props["body"]));
             }
             StmType::FuncDeclaration => {
+                let func_name = get_stmt_typ!(
+                    &get_stmt_typ!(&node.props["name"]).props["name"],
+                    StmtValue::Str
+                )
+                .clone();
+
+                if self.scope_stk.check_symb(&func_name) {
+                    println!("line {}: function '{func_name}' already been declared",node.line);
+                }
+                
                 self.scope_stk.push_scope();
 
                 let mut required_arg: Vec<ArgInfo> = vec![];
@@ -408,11 +428,7 @@ impl SymenticAnal {
                 self.analyze(get_stmt_typ!(&node.props["body"]));
                 self.scope_stk.pop_scope();
 
-                let func_name = get_stmt_typ!(
-                    &get_stmt_typ!(&node.props["name"]).props["name"],
-                    StmtValue::Str
-                )
-                .clone();
+
                 self.scope_stk.push_symb(SymbData::func(
                     func_name.clone(),
                     FuncData::new(func_name.clone(), &required_arg, &optional_arg),
@@ -439,7 +455,7 @@ impl SymenticAnal {
                 );
 
                 if (!self.scope_stk.check_symb(&func_name)) {
-                    println!("function '{}' not declared", func_name);
+                    println!("line {}: function '{}' not declared",node.line, func_name);
                 } else {
                     if (!self.scope_stk.get_symb(&func_name).is_func) {
                         println!("variable '{}' is not callable", func_name);

@@ -1,4 +1,15 @@
-func hello(a = 15, b , c = 'ur mom', d = 6) {
+func hello(a, b, c = 'ur mom', d = [6,2],k ={b : 2, z : [2,2,"aasdsd"]}) {
 }
 
-hello(1);
+func qwe(a)  {
+}
+
+
+func qwexc()  {
+}
+func qwex()  {
+}
+
+
+
+hello(1,"asdas",c = 5);

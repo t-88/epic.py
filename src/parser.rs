@@ -57,14 +57,14 @@ pub struct Stmt {
 }
 
 impl Stmt {
-    fn new() -> Self {
+    pub  fn new() -> Self {
         Stmt {
             line: 0,
             typ: StmType::Empty,
             props: HashMap::new(),
         }
     }
-    fn from(line: u64, typ: StmType, props: HashMap<String, StmtValue>) -> Self {
+    pub fn from(line: u64, typ: StmType, props: HashMap<String, StmtValue>) -> Self {
         Stmt {
             line: line,
             typ: typ,
@@ -706,16 +706,25 @@ impl Parser {
         let mut stmt: Stmt;
         panic_check!(self.parse_grouping(), stmt);
         if (self.get(0).typ == TknType::Dot) {
+            let mut add_prefix = false;
+            if stmt.typ == StmType::SysIdent {
+                add_prefix = true;
+            }
             while !self.is_empty(0) && self.get(0).typ == TknType::Dot {
                 self.next();
 
-                let rhs: Stmt;
+                let mut rhs: Stmt;
                 panic_check!(self.parse_fun_call(expect_semi), rhs);
 
                 stmt = Stmt::from(self.get(-1).line, StmType::DotExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
                     props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
-                    props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                    if(add_prefix) {
+                        let mut r = rhs.props.get_mut("name").unwrap();
+                        let mut b = get_stmt_typ!(get_stmt_typ!(r).props.get_mut("name").unwrap(),StmtValue::Str);
+                        *b = format!("$.{}",b).to_string();
+                        props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                    }
                     props
                 });
             }

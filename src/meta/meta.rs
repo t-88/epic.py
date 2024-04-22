@@ -47,10 +47,10 @@ impl FuncData {
     }
 }
 
+#[derive(Debug)]
 pub struct Meta {
-    functions: HashMap<String, FuncData>,
+    pub functions: HashMap<String, FuncData>,
 }
-
 impl Meta {
     pub fn init() -> Meta {
         let mut meta = Meta {
@@ -59,7 +59,7 @@ impl Meta {
 
         meta.functions.insert(
             "log".to_string(),
-            FuncData::new("log".to_string(), &vec![], &vec![ArgInfo::not_required("text".to_string(),"".to_string())]),
+            FuncData::new("log".to_string(), &vec![ArgInfo::required("".to_string())], &vec![]),
         );
 
         return meta;
