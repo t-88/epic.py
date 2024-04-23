@@ -719,12 +719,17 @@ impl Parser {
                 stmt = Stmt::from(self.get(-1).line, StmType::DotExpr, {
                     let mut props: HashMap<String, StmtValue> = HashMap::new();
                     props.insert(String::from("lhs"), StmtValue::Stmt(stmt));
-                    if(add_prefix) {
-                        let mut r = rhs.props.get_mut("name").unwrap();
-                        let mut b = get_stmt_typ!(get_stmt_typ!(r).props.get_mut("name").unwrap(),StmtValue::Str);
-                        *b = format!("$.{}",b).to_string();
-                        props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
+                    
+                    
+                    // give function prefix
+                    if(rhs.typ == StmType::FuncCall) {
+                        if(add_prefix) {
+                            let mut r = rhs.props.get_mut("name").unwrap();
+                            let mut b = get_stmt_typ!(get_stmt_typ!(r).props.get_mut("name").unwrap(),StmtValue::Str);
+                            *b = format!("$.{}",b).to_string();
+                        }
                     }
+                    props.insert(String::from("rhs"), StmtValue::Stmt(rhs));
                     props
                 });
             }

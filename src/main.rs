@@ -48,7 +48,7 @@ fn main() {
 
 
 
-    // let transpiler : Transpiler = Transpiler::new();
-    // let src = transpiler.js_transpiler(&parser.program, 0,&mut true);
-    // println!("{}",src);
+    let transpiler : Transpiler = Transpiler::new();
+    let src = transpiler.js_transpiler(&parser.program, 0,&mut true);
+    println!("{}",src);
 }

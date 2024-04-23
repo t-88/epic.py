@@ -2,69 +2,44 @@ use std::collections::HashMap;
 
 use crate::*;
 
-struct PrebuildMeta {
-    name: String,
-    is_func: bool,
-    arglist: HashMap<String, String>,
-}
-impl PrebuildMeta {
-    fn new() -> PrebuildMeta {
-        return PrebuildMeta {
-            name: "".to_string(),
-            is_func: false,
-            arglist: HashMap::new(),
-        };
-    }
-    fn variable(name: String) -> PrebuildMeta {
-        let mut meta = PrebuildMeta::new();
-        meta.name = name;
-        return meta;
-    }
-    fn function(name: String, arglist: HashMap<String, String>) -> PrebuildMeta {
-        let mut meta = PrebuildMeta::new();
-        meta.name = name;
-        meta.is_func = true;
-        meta.arglist = arglist;
-        return meta;
-    }
-}
-
 pub struct Transpiler {
-    js_prebuilds: HashMap<&'static str, PrebuildMeta>,
+    js_functions: HashMap<String, String>,
 }
 
 impl Transpiler {
     pub fn new() -> Transpiler {
         let mut trans: Transpiler = Transpiler {
-            js_prebuilds: HashMap::new(),
+            js_functions: HashMap::new(),
         };
-
         trans.fill_js_prebuilds();
-
         return trans;
     }
 
     pub fn fill_js_prebuilds(&mut self) {
-        self.js_prebuilds.insert(
-            "log",
-            PrebuildMeta::function("console.log".to_string(), HashMap::new()),
+        self.js_functions
+            .insert("log".to_string(), "console.log".to_string());
+        self.js_functions
+            .insert("get_component".to_string(), "sys__get_component".to_string());
+
+        self.js_functions.insert(
+            "get_entity_by_id".to_string(),
+            "get_entity_by_id".to_string(),
         );
-        self.js_prebuilds
-            .insert("AABB", PrebuildMeta::variable("AABB".to_string()));
-        self.js_prebuilds.insert(
-            "get_component",
-            PrebuildMeta::variable("get_component".to_string()),
-        );
-        self.js_prebuilds.insert(
-            "get_entity_by_id",
-            PrebuildMeta::variable("get_entity_by_id".to_string()),
-        );
-        self.js_prebuilds.insert(
-            "clear_entities",
-            PrebuildMeta::variable("clear_entities".to_string()),
-        );
-        self.js_prebuilds
-            .insert("init", PrebuildMeta::variable("init".to_string()));
+
+        self.js_functions
+            .insert("randint".to_string(), "sys__randint".to_string());
+
+        self.js_functions
+            .insert("clear_entities".to_string(), "sys__clear_entities".to_string());
+
+        self.js_functions
+            .insert("init".to_string(), "sys__init".to_string());
+
+        self.js_functions
+            .insert("sqrt".to_string(), "sys__sqrt".to_string());
+
+        self.js_functions
+            .insert("AABB".to_string(), "sys__AABB".to_string());
     }
     pub fn js_transpiler(&self, node: &Stmt, depth: usize, add_semi: &mut bool) -> String {
         let mut src = "".to_string();
@@ -215,12 +190,12 @@ impl Transpiler {
             }
 
             StmType::DotExpr => {
-                //TODO: handle system prebuilds
                 if (get_stmt_typ!(&node.props["lhs"]).typ == StmType::SysIdent) {
                     let rhs = get_stmt_typ!(&node.props["rhs"]);
                     match rhs.typ {
-                        StmType::FuncCall => {}
-                        StmType::Ident => {}
+                        StmType::FuncCall => {
+                            src = self.js_transpiler(rhs, 0, &mut false);
+                        }
                         _ => {
                             unreachable!();
                         }
@@ -320,7 +295,15 @@ impl Transpiler {
             }
 
             StmType::FuncCall => {
-                let name = self.js_transpiler(get_stmt_typ!(&node.props["name"]), 0, &mut false);
+                let mut name =
+                    self.js_transpiler(get_stmt_typ!(&node.props["name"]), 0, &mut false);
+                if (name.starts_with("$.")) {
+                    name = self
+                        .js_functions
+                        .get(&name.split_off(2))
+                        .unwrap()
+                        .to_string();
+                }
                 let mut args: String = "".to_string();
                 if node.props.contains_key("arglist") {
                     args = self.js_transpiler(get_stmt_typ!(&node.props["arglist"]), 0, &mut false);

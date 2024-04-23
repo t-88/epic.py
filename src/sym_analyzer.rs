@@ -30,7 +30,7 @@ impl SymbData {
             is_func: false,
             typ: SymbType::Null,
             attrs: HashMap::new(),
-            func_data: FuncData::new("".to_string(), &vec![], &vec![]),
+            func_data: FuncData::new("".to_string(), 0, &vec![]),
         };
     }
 
@@ -124,7 +124,6 @@ impl ScopeStack {
         let tmp_idx = self.cur_scope;
         self.cur_scope = saved_scope;
 
-
         return self.scopes[tmp_idx as usize].symbs[name].clone();
     }
 
@@ -153,12 +152,12 @@ impl SymenticAnal {
 
         self.scope_stk.push_scope();
         for i in &self.meta.functions {
-            self.scope_stk.push_symb(SymbData::func(format!("$.{}",i.0) , i.1.to_owned()));
+            self.scope_stk
+                .push_symb(SymbData::func(format!("$.{}", i.0), i.1.to_owned()));
         }
 
         self.analyze(program);
         self.scope_stk.pop_scope();
-        
     }
 
     pub fn get_val_typ(self: &Self, stmt: &Stmt) -> SymbType {
@@ -243,11 +242,11 @@ impl SymenticAnal {
             }
         }
     }
-    fn parse_arglist(&self, node: &Stmt) -> (Vec<ArgInfo>, Vec<ArgInfo>) {
+    fn parse_arglist(&self, node: &Stmt) -> (i32, Vec<ArgInfo>) {
         let args = get_stmt_typ!(&node.props["list"], StmtValue::Arr);
 
         let mut optional_arg: Vec<ArgInfo> = vec![];
-        let mut required_arg: Vec<ArgInfo> = vec![];
+        let mut required_arg: i32 = 0;
 
         for stmt in args {
             match stmt.typ {
@@ -262,16 +261,8 @@ impl SymenticAnal {
                         self.from_literal_to_str(get_stmt_typ!(&stmt.props["val"]));
                     optional_arg.push(ArgInfo::not_required(name, val));
                 }
-                StmType::Ident
-                | StmType::Arr
-                | StmType::IntLiteral
-                | StmType::HashMap
-                | StmType::FloatLiteral
-                | StmType::StringLiteral => {
-                    required_arg.push(ArgInfo::required(self.from_literal_to_str(stmt)));
-                }
                 _ => {
-                    unreachable!()
+                    required_arg += 1;
                 }
             }
         }
@@ -335,11 +326,8 @@ impl SymenticAnal {
                         StmType::FuncCall => {
                             self.analyze(rhs);
                         }
-                        StmType::Ident => {
-                            unreachable!();
-                        }
                         _ => {
-                            println!("line {}: system only accesses variables or functions you tried to access {:?}",rhs.line,rhs.typ);
+                            println!("line {}: system only accesses functions you tried to access {:?}",rhs.line,rhs.typ);
                         }
                     }
                 }
@@ -381,12 +369,15 @@ impl SymenticAnal {
                 .clone();
 
                 if self.scope_stk.check_symb(&func_name) {
-                    println!("line {}: function '{func_name}' already been declared",node.line);
+                    println!(
+                        "line {}: function '{func_name}' already been declared",
+                        node.line
+                    );
                 }
-                
+
                 self.scope_stk.push_scope();
 
-                let mut required_arg: Vec<ArgInfo> = vec![];
+                let mut required_arg: usize = 0; 
                 let mut optional_arg: Vec<ArgInfo> = vec![];
 
                 let mut args: &Vec<Stmt>;
@@ -419,7 +410,7 @@ impl SymenticAnal {
                                     get_stmt_typ!(&stmt.props["name"], StmtValue::Str).clone();
                                 self.scope_stk
                                     .push_symb(SymbData::variable(name.clone(), SymbType::Null));
-                                required_arg.push(ArgInfo::required(name.clone()));
+                                required_arg += 1;
                             }
                             _ => unreachable!(),
                         }
@@ -428,10 +419,9 @@ impl SymenticAnal {
                 self.analyze(get_stmt_typ!(&node.props["body"]));
                 self.scope_stk.pop_scope();
 
-
                 self.scope_stk.push_symb(SymbData::func(
                     func_name.clone(),
-                    FuncData::new(func_name.clone(), &required_arg, &optional_arg),
+                    FuncData::new(func_name.clone(), required_arg, &optional_arg),
                 ));
             }
             StmType::ArgList => {
@@ -448,22 +438,29 @@ impl SymenticAnal {
                     self.analyze(get_stmt_typ!(&node.props["arglist"]));
                 }
 
-                self.analyze(get_stmt_typ!(&node.props["name"]));
+                // self.analyze(get_stmt_typ!(&node.props["name"]));
                 let func_name = get_stmt_typ!(
                     &get_stmt_typ!(&node.props["name"]).props["name"],
                     StmtValue::Str
                 );
 
                 if (!self.scope_stk.check_symb(&func_name)) {
-                    println!("line {}: function '{}' not declared",node.line, func_name);
+                    if(func_name.starts_with("$.")) {
+                        println!("line {}: system doesnt support function '{}'", node.line, func_name.split_at(2).1);
+                        return;
+                    } else {
+                        println!("line {}: function '{}' not declared", node.line, func_name);
+                        return;
+                    }
                 } else {
                     if (!self.scope_stk.get_symb(&func_name).is_func) {
                         println!("variable '{}' is not callable", func_name);
+                        return;
                     }
                 }
 
                 let symb = self.scope_stk.get_symb(&func_name);
-                let mut required_args: Vec<ArgInfo> = vec![];
+                let mut required_args: i32 = 0; 
                 let mut optional_args: Vec<ArgInfo> = vec![];
 
                 if (node.props.contains_key("arglist")) {
@@ -472,13 +469,13 @@ impl SymenticAnal {
                 }
 
                 // wrong number of required args
-                if symb.func_data.required_args.len() != required_args.len() {
-                    if symb.func_data.required_args.len() == 0
-                        || symb.func_data.required_args.len() == 1
+                if symb.func_data.required_args != required_args as usize {
+                    if symb.func_data.required_args == 0
+                        || symb.func_data.required_args == 1
                     {
-                        println!("line {}: wrong number of arguments for function '{}', {} is required but got {}",node.line,func_name,symb.func_data.required_args.len(),required_args.len());
+                        println!("line {}: wrong number of arguments for function '{}', {} is required but got {}",node.line,func_name,symb.func_data.required_args,required_args);
                     } else {
-                        println!("line {}: wrong number of arguments for function '{}', {} are required but got {}",node.line,func_name,symb.func_data.required_args.len(),required_args.len());
+                        println!("line {}: wrong number of arguments for function '{}', {} are required but got {}",node.line,func_name,symb.func_data.required_args,required_args);
                     }
                 }
 
