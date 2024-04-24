@@ -22,19 +22,19 @@ pub fn compile(src : String) -> (i32,Vec<String>) {
     let mut lexer: Lexer = Lexer::new();
     lexer.tokenize(&src);
     if (lexer.errs.len() > 0) {
-        return (-1 , lexer.errs);
+        return (1 , lexer.errs);
     }
 
     let mut parser: Parser = Parser::new();
     parser.parse(&src);
     if (parser.errs.len() > 0) {
-        return (-2 , parser.errs);
+        return (2 , parser.errs);
     }
 
     let mut analyzer: SymenticAnal =  SymenticAnal::new();
     analyzer.analyse(&parser.program);
     if (analyzer.errs.len() > 0) {
-        return (-3 , analyzer.errs);
+        return (3 , analyzer.errs);
     }
 
     let transpiler : Transpiler = Transpiler::new();
@@ -53,5 +53,5 @@ extern "C" {
 #[wasm_bindgen]
 pub fn js_compile(src : String) -> JsValue {
     let comped = compile(src);
-    return JsValue::from(format!("{}##{:?}",comped.0,comped.1));
+    return JsValue::from(format!("{}#{:?}",comped.0,comped.1));
 }

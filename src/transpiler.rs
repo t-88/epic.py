@@ -44,6 +44,10 @@ impl Transpiler {
 
         self.js_functions
             .insert("AABB".to_string(), "sys__AABB".to_string());
+    
+            self.js_functions
+            .insert("is_pressed".to_string(), "sys__is_pressed".to_string());
+
     }
 
     pub fn js_transpiler(&self, node: &Stmt, depth: usize, add_semi: &mut bool) -> String {

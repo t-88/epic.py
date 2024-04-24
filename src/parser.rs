@@ -740,7 +740,7 @@ impl Parser {
             let mut  stmt: Stmt;
 
             self.next();
-            panic_check!(self.parse_arth_op_add(&mut false), stmt);
+            panic_check!(self.parse_fun_call(&mut false), stmt);
             panic_check!(self.expect(TknType::CPara));
             self.next();
 

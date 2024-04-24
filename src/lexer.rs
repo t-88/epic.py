@@ -216,7 +216,7 @@ impl Lexer {
                 }
                 self.col += col_offset;
             } else if chr.is_numeric()
-                || (['-', '+'].contains(&chr) && !self.is_empty() && self.get().is_numeric())
+                || (['-'].contains(&chr) && !self.is_empty() && self.get().is_numeric())
             {
                 let mut word: String = String::from(chr);
                 let mut col_offset = 1;

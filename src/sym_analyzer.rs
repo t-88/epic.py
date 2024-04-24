@@ -289,6 +289,7 @@ impl SymenticAnal {
                 let ident_name = get_stmt_typ!(&node.props["name"], StmtValue::Str);
                 if (!self.scope_stk.check_symb(ident_name)) {
                     self.errs.push(format!("line {}: variable '{}' not declared", node.line, ident_name));
+                    self.scope_stk.push_symb(SymbData::variable(ident_name.to_string(), SymbType::Null))
                 }
             }
             StmType::VariableDeclaration => {

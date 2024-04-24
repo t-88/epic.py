@@ -100,7 +100,13 @@ impl Meta {
             "AABB".to_string(),
             8, 
             &vec![],
-        ));             
+        ));   
+
+        meta.add_func(FuncData::new(
+            "is_pressed".to_string(),
+            1, 
+            &vec![],
+        ));                     
 
         return meta;
     }
