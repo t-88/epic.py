@@ -10,9 +10,9 @@ impl Transpiler {
         
         py_functions.insert("log".to_string(), "print".to_string());
         py_functions.insert("sqrt".to_string(), "math.sqrt".to_string());
+        py_functions.insert("randint".to_string(), "random.randint".to_string());
         self.same_name_meta(&mut py_functions, "get_component");
         self.same_name_meta(&mut py_functions, "get_entity_by_id");
-        self.same_name_meta(&mut py_functions, "randint");
         self.same_name_meta(&mut py_functions, "clear_entities");
         self.same_name_meta(&mut py_functions, "clear_entities");
         self.same_name_meta(&mut py_functions, "init");
