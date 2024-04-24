@@ -13,3 +13,4 @@ func qwex()  {
 
 
 hello(1,"asdas",c = 5);
+let id = $.create_entity(x = i * 30 + 60,y = j * 30 + 10,w = 25,h = 25,r = 20,g = 120,b = 255,1,2);

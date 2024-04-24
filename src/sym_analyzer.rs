@@ -441,6 +441,7 @@ impl SymenticAnal {
                 let list = get_stmt_typ!(&node.props["list"], StmtValue::Arr);
                 for stmt in list {
                     // skip optional args
+                    //TODO BUG: dont skipp optional params in function calls
                     if stmt.typ != StmType::VariableAssignment {
                         self.analyze(stmt);
                     }
