@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 use crate::*;
 
@@ -14,43 +14,29 @@ impl Transpiler {
         trans.fill_js_prebuilds();
         return trans;
     }
-
+    fn same_name_meta(&self,functions : &mut HashMap<String,String>,name : &str) {
+        functions.insert(name.to_string(), format!("sys__{name}"));
+    }
     pub fn fill_js_prebuilds(&mut self) {
-        self.js_functions
-            .insert("log".to_string(), "console.log".to_string());
-        self.js_functions.insert(
-            "get_component".to_string(),
-            "sys__get_component".to_string(),
-        );
+        let mut js_functions : HashMap<String,String> = HashMap::new();
+        
+        js_functions.insert("log".to_string(), "console.log".to_string());
+        js_functions.insert("sqrt".to_string(), "Math.sqrt".to_string());
+        self.same_name_meta(&mut js_functions, "get_component");
+        self.same_name_meta(&mut js_functions, "get_entity_by_id");
+        self.same_name_meta(&mut js_functions, "randint");
+        self.same_name_meta(&mut js_functions, "clear_entities");
+        self.same_name_meta(&mut js_functions, "clear_entities");
+        self.same_name_meta(&mut js_functions, "init");
+        self.same_name_meta(&mut js_functions, "AABB");
+        self.same_name_meta(&mut js_functions, "is_pressed");
+        self.same_name_meta(&mut js_functions, "remove_entity");
+        self.same_name_meta(&mut js_functions, "create_entity");
 
-        self.js_functions.insert(
-            "get_entity_by_id".to_string(),
-            "get_entity_by_id".to_string(),
-        );
-
-        self.js_functions
-            .insert("randint".to_string(), "sys__randint".to_string());
-
-        self.js_functions.insert(
-            "clear_entities".to_string(),
-            "sys__clear_entities".to_string(),
-        );
-
-        self.js_functions
-            .insert("init".to_string(), "sys__init".to_string());
-
-        self.js_functions
-            .insert("sqrt".to_string(), "sys__sqrt".to_string());
-
-        self.js_functions
-            .insert("AABB".to_string(), "sys__AABB".to_string());
-    
-            self.js_functions
-            .insert("is_pressed".to_string(), "sys__is_pressed".to_string());
-
+        self.js_functions = js_functions;
     }
 
-    pub fn js_transpiler(&self, node: &Stmt, depth: usize, add_semi: &mut bool) -> String {
+    pub fn js_transpiler(&self, node: &Stmt, depth: usize, add_semi: &mut bool, func_prefix: &String) -> String {
         let mut src = "".to_string();
         let spacing: String = "  ".to_string();
 
@@ -58,7 +44,7 @@ impl Transpiler {
             StmType::Program => {
                 if let StmtValue::Arr(body) = &node.props["body"] {
                     for node in body {
-                        src += &self.js_transpiler(node, depth, &mut true);
+                        src += &self.js_transpiler(node, depth, &mut true,func_prefix);
                         src += "\n"
                     }
                 }
@@ -131,7 +117,7 @@ impl Transpiler {
                 src += "[";
                 if vals.len() != 0 {
                     for i in 0..vals.len() {
-                        src += &self.js_transpiler(&vals[i], 0, &mut false);
+                        src += &self.js_transpiler(&vals[i], 0, &mut false,func_prefix);
                         if i != vals.len() - 1 {
                             src += ",";
                         }
@@ -148,6 +134,7 @@ impl Transpiler {
                     get_stmt_typ!(&node.props["val"], StmtValue::Stmt),
                     0,
                     &mut false,
+                    func_prefix
                 );
                 src = format!("{}({val})", spacing.repeat(depth));
                 if (*add_semi) {
@@ -157,8 +144,8 @@ impl Transpiler {
             }
 
             StmType::VariableDeclaration => {
-                let ident = self.js_transpiler(get_stmt_typ!(&node.props["ident"]), 0, &mut false);
-                let val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false);
+                let ident = self.js_transpiler(get_stmt_typ!(&node.props["ident"]), 0, &mut false,func_prefix);
+                let val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false,func_prefix);
                 src = format!("{}let {} = {}", spacing.repeat(depth), ident, val);
                 if (*add_semi) {
                     src += ";";
@@ -166,8 +153,8 @@ impl Transpiler {
                 return src;
             }
             StmType::VariableAssignment => {
-                let ident = self.js_transpiler(get_stmt_typ!(&node.props["ident"]), 0, &mut false);
-                let val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false);
+                let ident = self.js_transpiler(get_stmt_typ!(&node.props["ident"]), 0, &mut false,func_prefix);
+                let val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false,func_prefix);
                 src = format!("{}{} = {}", spacing.repeat(depth), ident, val);
                 if (*add_semi) {
                     src += ";";
@@ -178,8 +165,8 @@ impl Transpiler {
             // ops
             StmType::ArthExpr => {
                 let op = get_stmt_typ!(&node.props["op"], StmtValue::Str);
-                let lhs = self.js_transpiler(get_stmt_typ!(&node.props["lhs"]), 0, &mut false);
-                let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false);
+                let lhs = self.js_transpiler(get_stmt_typ!(&node.props["lhs"]), 0, &mut false,func_prefix);
+                let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false,func_prefix);
                 src = format!("{}{} {} {}", spacing.repeat(depth), lhs, op, rhs);
                 if (*add_semi) {
                     src += ";";
@@ -188,8 +175,8 @@ impl Transpiler {
             }
             StmType::BooleanExpr => {
                 let op = get_stmt_typ!(&node.props["op"], StmtValue::Str);
-                let lhs = self.js_transpiler(get_stmt_typ!(&node.props["lhs"]), 0, &mut false);
-                let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false);
+                let lhs = self.js_transpiler(get_stmt_typ!(&node.props["lhs"]), 0, &mut false,func_prefix);
+                let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false,func_prefix);
                 src = format!("{}{} {} {}", spacing.repeat(depth), lhs, op, rhs);
                 if (*add_semi) {
                     src += ";";
@@ -203,15 +190,15 @@ impl Transpiler {
                     let rhs = get_stmt_typ!(&node.props["rhs"]);
                     match rhs.typ {
                         StmType::FuncCall => {
-                            src = self.js_transpiler(rhs, depth, &mut false);
+                            src = self.js_transpiler(rhs, depth, &mut false,func_prefix);
                         }
                         _ => {
                             unreachable!();
                         }
                     }
                 } else {
-                    let lhs = self.js_transpiler(get_stmt_typ!(&node.props["lhs"]), 0, &mut false);
-                    let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false);
+                    let lhs = self.js_transpiler(get_stmt_typ!(&node.props["lhs"]), 0, &mut false,func_prefix);
+                    let rhs = self.js_transpiler(get_stmt_typ!(&node.props["rhs"]), 0, &mut false,func_prefix);
                     src = format!("{}{lhs}.{rhs}", spacing.repeat(depth));
                     if (*add_semi) {
                         src += ";";
@@ -223,9 +210,9 @@ impl Transpiler {
             // stmts
             StmType::IfStmt => {
                 let condition =
-                    self.js_transpiler(get_stmt_typ!(&node.props["condition"]), 0, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["condition"]), 0, &mut false,func_prefix);
                 let body =
-                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false,func_prefix);
 
                 // else if
                 let else_ifs = get_stmt_typ!(&node.props["else_ifs"], StmtValue::Arr);
@@ -238,11 +225,13 @@ impl Transpiler {
                             get_stmt_typ!(&else_if.props["condition"]),
                             0,
                             &mut false,
+                        func_prefix
                         );
                         let body = self.js_transpiler(
                             get_stmt_typ!(&else_if.props["body"]),
                             depth + 1,
                             &mut false,
+                        func_prefix
                         );
                         else_ifs_src +=
                             &format!("{}else if({condition}){body}", spacing.repeat(depth));
@@ -256,6 +245,7 @@ impl Transpiler {
                         get_stmt_typ!(&get_stmt_typ!(&node.props["else"]).props["body"]),
                         depth + 1,
                         &mut false,
+                    func_prefix
                     );
                     else_src += &format!("{}else{body}", spacing.repeat(depth));
                 }
@@ -267,46 +257,50 @@ impl Transpiler {
                 return src;
             }
             StmType::ForStmt => {
-                let decl = self.js_transpiler(get_stmt_typ!(&node.props["decl"]), 0, &mut false);
+                let decl = self.js_transpiler(get_stmt_typ!(&node.props["decl"]), 0, &mut false,func_prefix);
                 let condition =
-                    self.js_transpiler(get_stmt_typ!(&node.props["condition"]), 0, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["condition"]), 0, &mut false,func_prefix);
                 let action =
-                    self.js_transpiler(get_stmt_typ!(&node.props["action"]), 0, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["action"]), 0, &mut false,func_prefix);
                 let body =
-                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false,func_prefix);
 
                 src = format!("for({decl};{condition};{action}){body}");
                 return src;
             }
             StmType::WhileStmt => {
                 let condition =
-                    self.js_transpiler(get_stmt_typ!(&node.props["condition"]), 0, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["condition"]), 0, &mut false,func_prefix);
                 let body =
-                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false,func_prefix);
                 src = format!("while({condition}){body}");
                 return src;
             }
 
             StmType::FuncDeclaration => {
-                let name = self.js_transpiler(get_stmt_typ!(&node.props["name"]), 0, &mut false);
+                let name = self.js_transpiler(get_stmt_typ!(&node.props["name"]), 0, &mut false,func_prefix);
                 let mut args = "".to_string();
                 if node.props.contains_key("arglist") {
                     args += &self.js_transpiler(
                         get_stmt_typ!(&node.props["arglist"]),
                         depth + 1,
                         &mut false,
+                    func_prefix
                     );
                 }
                 let body =
-                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false);
-                src = format!("function {name}({args}){body}");
+                    self.js_transpiler(get_stmt_typ!(&node.props["body"]), depth + 1, &mut false,func_prefix);
+                src = format!("function {func_prefix}{name}({args}){body}");
                 return src;
             }
 
             StmType::FuncCall => {
                 let mut name =
-                    self.js_transpiler(get_stmt_typ!(&node.props["name"]), 0, &mut false);
+                    self.js_transpiler(get_stmt_typ!(&node.props["name"]), 0, &mut false,func_prefix);
+                
+                let mut is_sys = false;
                 if (name.starts_with("$.")) {
+                    is_sys = true;
                     name = self
                         .js_functions
                         .get(&name.split_off(2))
@@ -315,30 +309,62 @@ impl Transpiler {
                 }
                 let mut args: String = "".to_string();
                 if node.props.contains_key("arglist") {
-                    args = self.js_transpiler(get_stmt_typ!(&node.props["arglist"]), 0, &mut false);
+                    args = self.js_transpiler(get_stmt_typ!(&node.props["arglist"]), 0, &mut false,func_prefix);
                 }
 
-                src = format!("{}{name}({args})", spacing.repeat(depth));
+                if !is_sys {
+                    src = format!("{}{func_prefix}{name}({args})", spacing.repeat(depth));
+                } else {
+                    src = format!("{}{name}({args})", spacing.repeat(depth));
+                }
                 if (*add_semi) {
                     src += ";";
                 }
+
+
                 return src;
             }
 
             StmType::ArgList => {
                 let args = get_stmt_typ!(&node.props["list"], StmtValue::Arr);
+                let mut not_required_args = vec![];
 
                 for i in 0..args.len() {
-                    src += &self.js_transpiler(&args[i], 0, &mut false);
-                    if i != args.len() - 1 {
-                        src += ",";
+                    match args[i].typ {
+                        StmType::VariableAssignment => {
+                            not_required_args.push(&args[i]);
+                        }
+                        _ => {
+                            src += &self.js_transpiler(&args[i], 0, &mut false,func_prefix);
+                            if i != args.len() - 1 {
+                                src += ",";
+                            }
+                        }
                     }
                 }
+
+                if not_required_args.len() != 0 && src.chars().last().unwrap() != ',' {
+                    src += ",";
+                    src += "{";
+                    for i in 0..not_required_args.len() {
+                        
+                        let mut arg =   self.js_transpiler(&args[i], 0, &mut false,func_prefix);
+                        arg.replace_range(2..3, ":");
+                        src += arg.as_str();
+
+                        if i != not_required_args.len() - 1 {
+                            src += ",";
+                        }
+                    }
+                    src += "}";
+                }
+
+
                 return src;
             }
 
             StmType::Return => {
-                let val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false);
+                let val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false,func_prefix);
                 src = format!("{}return {val}", spacing.repeat(depth));
                 if (*add_semi) {
                     src += ";";
@@ -352,8 +378,8 @@ impl Transpiler {
 
                 if vals.len() != 0 {
                     for i in 0..vals.len() {
-                        let key = self.js_transpiler(&vals[i][0], 0, &mut false);
-                        let val = self.js_transpiler(&vals[i][1], 0, &mut false);
+                        let key = self.js_transpiler(&vals[i][0], 0, &mut false,func_prefix);
+                        let val = self.js_transpiler(&vals[i][1], 0, &mut false,func_prefix);
                         src += format!("{key} : {val}").as_str();
                         if (i != vals.len() - 1) {
                             src += ",";
@@ -373,7 +399,7 @@ impl Transpiler {
                         if (block.len() == 0) {
                         } else {
                             for stmt in block {
-                                src += &self.js_transpiler(stmt, depth + 1, &mut true);
+                                src += &self.js_transpiler(stmt, depth + 1, &mut true,func_prefix);
                                 src += "\n";
                             }
                         }

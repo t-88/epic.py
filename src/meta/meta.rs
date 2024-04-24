@@ -49,64 +49,40 @@ pub struct Meta {
     pub functions: HashMap<String, FuncData>,
 }
 impl Meta {
-    pub fn add_func(&mut self, func_data: FuncData) {
-        self.functions
-            .insert(func_data.name.clone(), func_data.clone());
+    pub fn add_func(&mut self, name: &str, num_required: usize, optional_info: Vec<ArgInfo>) {
+        self.functions.insert(
+            name.to_string(),
+            FuncData::new(name.to_string(), num_required, &optional_info),
+        );
     }
     pub fn init() -> Meta {
         let mut meta = Meta {
             functions: HashMap::new(),
         };
 
-        meta.add_func(FuncData::new("log".to_string(), 1, &vec![]));
-
-        meta.add_func(FuncData::new(
-            "get_component".to_string(),
-            2, 
-            &vec![],
-        ));
-
-        meta.add_func(FuncData::new(
-            "get_entity_by_id".to_string(),
-            1, 
-            &vec![],
-        ));
-
-        meta.add_func(FuncData::new(
-            "randint".to_string(),
-            2, 
-            &vec![],
-        ));
-
-        meta.add_func(FuncData::new(
-            "clear_entities".to_string(),
-            0, 
-            &vec![],
-        ));  
-
-        meta.add_func(FuncData::new(
-            "init".to_string(),
-            0, 
-            &vec![],
-        ));
-
-        meta.add_func(FuncData::new(
-            "sqrt".to_string(),
-            1, 
-            &vec![],
-        ));                 
-
-        meta.add_func(FuncData::new(
-            "AABB".to_string(),
-            8, 
-            &vec![],
-        ));   
-
-        meta.add_func(FuncData::new(
-            "is_pressed".to_string(),
-            1, 
-            &vec![],
-        ));                     
+        meta.add_func("log", 1, vec![]);
+        meta.add_func("get_component", 2, vec![]);
+        meta.add_func("get_entity_by_id", 1, vec![]);
+        meta.add_func("randint", 2, vec![]);
+        meta.add_func("clear_entities", 0, vec![]);
+        meta.add_func("init", 0, vec![]);
+        meta.add_func("sqrt", 1, vec![]);
+        meta.add_func("AABB", 8, vec![]);
+        meta.add_func("is_pressed", 1, vec![]);
+        meta.add_func("remove_entity", 1, vec![]);
+        meta.add_func(
+            "create_entity",
+            2,
+            vec![
+                ArgInfo::not_required("x".to_string(), "0".to_string()),
+                ArgInfo::not_required("y".to_string(), "0".to_string()),
+                ArgInfo::not_required("w".to_string(), "0".to_string()),
+                ArgInfo::not_required("h".to_string(), "0".to_string()),
+                ArgInfo::not_required("r".to_string(), "0".to_string()),
+                ArgInfo::not_required("g".to_string(), "0".to_string()),
+                ArgInfo::not_required("b".to_string(), "0".to_string()),
+            ],
+        );
 
         return meta;
     }

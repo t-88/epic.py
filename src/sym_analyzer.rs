@@ -2,8 +2,7 @@ use crate::*;
 use meta::meta::*;
 use std::{collections::HashMap, fmt::format, vec};
 
-//TODO: Handle prebuild function, idents
-//TODO: Handle arg count
+static REQUIRE_ENGINE_FUNCS : bool = false;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbType {
@@ -159,6 +158,19 @@ impl SymenticAnal {
         }
 
         self.analyze(program);
+
+
+        if(REQUIRE_ENGINE_FUNCS) {
+            // force the exsitance of on_update , on_init functions
+            if !self.scope_stk.check_symb("on_init") {
+                self.errs.push("function on_init is required, but not found".to_string());
+            }
+            if !self.scope_stk.check_symb("on_update") {
+                self.errs.push("function on_update is required, but not found".to_string());
+            }
+        }
+
+
         self.scope_stk.pop_scope();
     }
 
@@ -259,9 +271,7 @@ impl SymenticAnal {
                     )
                     .clone();
 
-                    let mut val: String =
-                        self.from_literal_to_str(get_stmt_typ!(&stmt.props["val"]));
-                    optional_arg.push(ArgInfo::not_required(name, val));
+                    optional_arg.push(ArgInfo::not_required(name, "".to_string()));
                 }
                 _ => {
                     required_arg += 1;

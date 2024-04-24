@@ -15,10 +15,10 @@ use parser::*;
 use transpiler::*;
 
 fn main() {
-    println!("{:?}",compile("let a = 2;".to_string()));
+    println!("{:?}",compile("      let id = $.create_entity(x = i * 30 + 60,y = j * 30 + 10,w = 25,h = 25,r = 20,g = 120,b = 255,1,2);".to_string(),"".to_string()));
 }
 
-pub fn compile(src : String) -> (i32,Vec<String>) {
+pub fn compile(src : String, func_prefix : String) -> (i32,Vec<String>) {
     let mut lexer: Lexer = Lexer::new();
     lexer.tokenize(&src);
     if (lexer.errs.len() > 0) {
@@ -38,7 +38,7 @@ pub fn compile(src : String) -> (i32,Vec<String>) {
     }
 
     let transpiler : Transpiler = Transpiler::new();
-    let src = transpiler.js_transpiler(&parser.program, 0,&mut true);
+    let src = transpiler.js_transpiler(&parser.program, 0,&mut true,&func_prefix);
     return (0,vec![src]);
 }
 
@@ -51,7 +51,7 @@ extern "C" {
     fn log(s : &str);
 }
 #[wasm_bindgen]
-pub fn js_compile(src : String) -> JsValue {
-    let comped = compile(src);
+pub fn js_compile(src : String,func_prefix : String) -> JsValue {
+    let comped = compile(src,func_prefix);
     return JsValue::from(format!("{}#{:?}",comped.0,comped.1));
 }
