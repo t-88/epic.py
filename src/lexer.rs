@@ -66,26 +66,21 @@ impl Tkn {
     }
 }
 
-#[derive(Debug)]
-pub struct LexerError {
-    pub error: String,
-    line: u64,
-    col: u64,
-}
-
 const SKIPPABLES: &[char] = &['\n', '\t', '\r', ' '];
 const KEYWORDS: &[&str] = &[
-    "for", "while", "if", "else", "elseif", "let", "true", "false" , "func", "return",
+    "for", "while", "if", "else", "elseif", "let", "true", "false", "func", "return",
 ];
 const ARTH_OPS: &[char] = &['+', '-', '*', '/'];
 const SINGLE_CHAR_BOOL_OPS: &[&str] = &[">", "<"];
-const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "==","!="];
-const SINGLE_CHAR_SYMBS: &[char] = &['(', ')', '{', '}', '[', ']', '&', '|', '=',',',':','.','$'];
+const TWO_CHAR_BOOL_OPS: &[&str] = &["&&", "||", ">=", "<=", "==", "!="];
+const SINGLE_CHAR_SYMBS: &[char] = &[
+    '(', ')', '{', '}', '[', ']', '&', '|', '=', ',', ':', '.', '$',
+];
 
 pub struct Lexer {
     pub src: String,
     pub tknz: Vec<Tkn>,
-    pub errs: Vec<LexerError>,
+    pub errs: Vec<String>,
     idx: u64,
     line: u64,
     col: u64,
@@ -124,11 +119,7 @@ impl Lexer {
     }
 
     fn push_err(self: &mut Self, msg: String) {
-        self.errs.push(LexerError {
-            col: self.col,
-            line: self.line,
-            error: format!("line {}: {}", self.line, msg),
-        });
+        self.errs.push(format!("line {}: {}", self.line, msg));
     }
     fn map_keyword(self: &Self, keyword: &String) -> Option<TknKeyword> {
         assert!(KEYWORDS.contains(&keyword.as_str()));
@@ -224,8 +215,9 @@ impl Lexer {
                     self.push_tkn(TknType::Ident, word);
                 }
                 self.col += col_offset;
-            } else if chr.is_numeric() || (['-','+'].contains(&chr) && !self.is_empty() && self.get().is_numeric()  ) {
-                
+            } else if chr.is_numeric()
+                || (['-', '+'].contains(&chr) && !self.is_empty() && self.get().is_numeric())
+            {
                 let mut word: String = String::from(chr);
                 let mut col_offset = 1;
                 while !self.is_empty() && self.get().is_numeric() {
@@ -290,15 +282,12 @@ impl Lexer {
                 self.push_err(format!("unexpected character '{}'", chr));
             }
         }
-    
+
         self.tknz.push(Tkn {
             col: self.col,
             line: self.line,
             typ: TknType::EOF,
             val: "".to_string(),
         });
-        
     }
-
-
 }

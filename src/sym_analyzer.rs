@@ -136,6 +136,7 @@ impl ScopeStack {
 }
 
 pub struct SymenticAnal {
+    pub errs : Vec<String>,
     scope_stk: ScopeStack,
     meta: Meta,
 }
@@ -145,6 +146,7 @@ impl SymenticAnal {
         SymenticAnal {
             scope_stk: ScopeStack::new(),
             meta: Meta::init(),
+            errs : vec![]
         }
     }
     pub fn analyse(self: &mut Self, program: &Stmt) {
@@ -286,7 +288,7 @@ impl SymenticAnal {
             StmType::Ident => {
                 let ident_name = get_stmt_typ!(&node.props["name"], StmtValue::Str);
                 if (!self.scope_stk.check_symb(ident_name)) {
-                    println!("line {}: variable '{}' not declared", node.line, ident_name);
+                    self.errs.push(format!("line {}: variable '{}' not declared", node.line, ident_name));
                 }
             }
             StmType::VariableDeclaration => {
@@ -327,7 +329,7 @@ impl SymenticAnal {
                             self.analyze(rhs);
                         }
                         _ => {
-                            println!("line {}: system only accesses functions you tried to access {:?}",rhs.line,rhs.typ);
+                            self.errs.push(format!("line {}: system only accesses functions you tried to access {:?}",rhs.line,rhs.typ));
                         }
                     }
                 }
@@ -369,10 +371,10 @@ impl SymenticAnal {
                 .clone();
 
                 if self.scope_stk.check_symb(&func_name) {
-                    println!(
+                    self.errs.push(format!(
                         "line {}: function '{func_name}' already been declared",
                         node.line
-                    );
+                    ));
                 }
 
                 self.scope_stk.push_scope();
@@ -446,15 +448,15 @@ impl SymenticAnal {
 
                 if (!self.scope_stk.check_symb(&func_name)) {
                     if(func_name.starts_with("$.")) {
-                        println!("line {}: system doesnt support function '{}'", node.line, func_name.split_at(2).1);
+                        self.errs.push(format!("line {}: system doesnt support function '{}'", node.line, func_name.split_at(2).1));
                         return;
                     } else {
-                        println!("line {}: function '{}' not declared", node.line, func_name);
+                        self.errs.push(format!("line {}: function '{}' not declared", node.line, func_name));
                         return;
                     }
                 } else {
                     if (!self.scope_stk.get_symb(&func_name).is_func) {
-                        println!("variable '{}' is not callable", func_name);
+                        self.errs.push(format!("line {}: variable '{}' is not callable", node.line,func_name));
                         return;
                     }
                 }
@@ -473,9 +475,9 @@ impl SymenticAnal {
                     if symb.func_data.required_args == 0
                         || symb.func_data.required_args == 1
                     {
-                        println!("line {}: wrong number of arguments for function '{}', {} is required but got {}",node.line,func_name,symb.func_data.required_args,required_args);
+                        self.errs.push(format!("line {}: wrong number of arguments for function '{}', {} is required but got {}",node.line,func_name,symb.func_data.required_args,required_args));
                     } else {
-                        println!("line {}: wrong number of arguments for function '{}', {} are required but got {}",node.line,func_name,symb.func_data.required_args,required_args);
+                        self.errs.push(format!("line {}: wrong number of arguments for function '{}', {} are required but got {}",node.line,func_name,symb.func_data.required_args,required_args));
                     }
                 }
 
@@ -488,10 +490,10 @@ impl SymenticAnal {
 
                     for arg in &optional_args {
                         if !func_optional_args.contains(&arg.name) {
-                            println!(
+                            self.errs.push(format!(
                                 "line {}: unknown optional argument provided '{}'",
                                 node.line, arg.name
-                            );
+                            ));
                         }
                     }
                 }

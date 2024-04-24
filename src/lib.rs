@@ -14,53 +14,44 @@ use lexer::*;
 use parser::*;
 use transpiler::*;
 
-#[wasm_bindgen]
-pub fn main() { 
-    compile("let a = 1;".to_string());
+fn main() {
+    println!("{:?}",compile("let a = 2;".to_string()));
 }
 
+pub fn compile(src : String) -> (i32,Vec<String>) {
+    let mut lexer: Lexer = Lexer::new();
+    lexer.tokenize(&src);
+    if (lexer.errs.len() > 0) {
+        return (-1 , lexer.errs);
+    }
+
+    let mut parser: Parser = Parser::new();
+    parser.parse(&src);
+    if (parser.errs.len() > 0) {
+        return (-2 , parser.errs);
+    }
+
+    let mut analyzer: SymenticAnal =  SymenticAnal::new();
+    analyzer.analyse(&parser.program);
+    if (analyzer.errs.len() > 0) {
+        return (-3 , analyzer.errs);
+    }
+
+    let transpiler : Transpiler = Transpiler::new();
+    let src = transpiler.js_transpiler(&parser.program, 0,&mut true);
+    return (0,vec![src]);
+}
+
+
+// js section
 
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s : &str);
 }
-
 #[wasm_bindgen]
-pub fn compile(src : String) -> JsValue {
-    let mut lexer: Lexer = Lexer::new();
-    lexer.tokenize(&src);
-
-    if (lexer.errs.len() > 0) {
-        println!("Lexer found {} errs", lexer.errs.len());
-        for lex_err in lexer.errs {
-            println!("{}", lex_err.error);
-        }
-        return JsValue::from("lexer error");
-    }
-
-
-    
-    let mut parser: Parser = Parser::new();
-    parser.parse(&src);
-    if (parser.errs.len() > 0) {
-        println!("{} syntax errs", parser.errs.len());
-        for err in parser.errs {
-            println!("{}", err.msg);
-        }
-        return JsValue::from("parser error");
-    }
-
-    let mut analyzer: SymenticAnal =  SymenticAnal::new();
-    analyzer.analyse(&parser.program);
-
-
-
-
-    let transpiler : Transpiler = Transpiler::new();
-    let src = transpiler.js_transpiler(&parser.program, 0,&mut true);
-    log("ur mom");
-    log(src.as_str());
-
-    return JsValue::from(src);
+pub fn js_compile(src : String) -> JsValue {
+    let comped = compile(src);
+    return JsValue::from(format!("{}##{:?}",comped.0,comped.1));
 }

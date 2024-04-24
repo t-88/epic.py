@@ -125,64 +125,55 @@ macro_rules! expect_semi_colon {
         }
     };
 }
-#[derive(Debug)]
-pub struct SyntaxError {
-    pub msg: String,
-}
-
 pub struct Parser {
     pub program: Stmt,
-    pub errs: Vec<SyntaxError>,
+    pub errs: Vec<String>,
     pub src: Vec<String>,
     lexer: Lexer,
     idx: u64,
 }
 
 impl Parser {
-    fn err_expected_char(self: &mut Self, chr: char) -> SyntaxError {
-        return SyntaxError {
-            msg: format!(
+    fn err_expected_char(self: &mut Self, chr: char) -> String {
+        return 
+            format!(
                 "line {}: missing '{}'\n -> {}",
                 self.get(-1).line,
                 chr,
                 self.src[(self.get(-1).line - 1) as usize]
-            ),
-        };
+            );
     }
-    fn err_expected(self: &mut Self, exp_typ: TknType) -> SyntaxError {
+    fn err_expected(self: &mut Self, exp_typ: TknType) -> String {
         if self.get(0).typ == TknType::EOF {
-            return SyntaxError {
-                msg: format!(
+            return 
+                format!(
                     "line {}: unexpected end of file\n -> {}",
                     self.get(-1).line,
                     self.src[self.src.len() - 1]
-                ),
-            };
+                );
         } else {
-            return SyntaxError {
-                msg: format!(
+            return 
+                format!(
                     "line {}: expected {:?} but found {:?} with value {:?}\n -> {}",
                     self.get(-1).line,
                     exp_typ,
                     self.get(0).typ,
                     self.get(0).val,
                     self.src[(self.get(-1).line - 1) as usize]
-                ),
-            };
+                );
         }
     }
 
-    fn err_expected_expr(self: &mut Self) -> SyntaxError {
-        return SyntaxError {
-            msg: format!(
+    fn err_expected_expr(self: &mut Self) -> String {
+        return 
+             format!(
                 "line {}: expected an experssion\n -> {}",
                 self.get(-1).line,
                 self.src[(self.get(-1).line - 1) as usize]
-            ),
-        };
+            );
     }
 
-    fn expect(self: &mut Self, typ: TknType) -> Result<Tkn, SyntaxError> {
+    fn expect(self: &mut Self, typ: TknType) -> Result<Tkn, String> {
         let tkn: Tkn = self.get(0);
         if (tkn.typ != typ) {
             match typ {
@@ -229,7 +220,7 @@ impl Parser {
         tkn
     }
 
-    fn panic_mode(self: &mut Self, err: SyntaxError) {
+    fn panic_mode(self: &mut Self, err: String) {
         self.errs.push(err);
 
         let keywords = [
@@ -285,7 +276,7 @@ impl Parser {
             .insert("body".to_string(), StmtValue::Arr(body));
     }
 
-    fn parse_statement(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_statement(self: &mut Self) -> Result<Stmt, String> {
         match self.get(0).typ {
             TknType::Keyword(TknKeyword::Let) => self.parse_variable_declaration(true),
             TknType::Keyword(TknKeyword::If) => self.parse_conditional(),
@@ -296,7 +287,7 @@ impl Parser {
             _ => self.parse_fun_call(&mut true),
         }
     }
-    fn parse_conditional(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_conditional(self: &mut Self) -> Result<Stmt, String> {
         let mut condtion: Stmt;
         let mut block: Stmt;
         let mut else_ifs: Vec<Stmt> = vec![];
@@ -353,7 +344,7 @@ impl Parser {
             props
         }));
     }
-    fn parse_for_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_for_stmt(self: &mut Self) -> Result<Stmt, String> {
         let mut decl: Stmt;
         let mut condition: Stmt;
         let mut action: Stmt;
@@ -383,7 +374,7 @@ impl Parser {
             props
         }));
     }
-    fn parse_while_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_while_stmt(self: &mut Self) -> Result<Stmt, String> {
         let mut condition: Stmt;
         let mut body: Stmt;
 
@@ -403,7 +394,7 @@ impl Parser {
             props
         }));
     }
-    fn parse_func_declaration_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_func_declaration_stmt(self: &mut Self) -> Result<Stmt, String> {
         let mut name: Stmt;
         let mut arglist: Stmt = Stmt::new();
         let mut arglist_exist = false;
@@ -432,7 +423,7 @@ impl Parser {
             props
         }));
     }
-    fn parse_arglist(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_arglist(self: &mut Self) -> Result<Stmt, String> {
         let mut args: Vec<Stmt> = vec![];
 
         loop {
@@ -452,7 +443,7 @@ impl Parser {
             props
         }));
     }
-    fn parse_return_stmt(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_return_stmt(self: &mut Self) -> Result<Stmt, String> {
         let mut val = Stmt::new();
         let mut val_exists = false;
 
@@ -474,7 +465,7 @@ impl Parser {
         }));
     }
 
-    fn parse_stmt_block(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_stmt_block(self: &mut Self) -> Result<Stmt, String> {
         let mut stmts: Vec<Stmt> = vec![];
         let mut stmt: Stmt;
 
@@ -497,7 +488,7 @@ impl Parser {
         panic_check!(self.expect(TknType::CCurl));
         self.next();
     }
-    fn parse_variable_declaration(self: &mut Self, expect_semi: bool) -> Result<Stmt, SyntaxError> {
+    fn parse_variable_declaration(self: &mut Self, expect_semi: bool) -> Result<Stmt, String> {
         let mut ident: Stmt;
         let mut val: Stmt;
 
@@ -524,7 +515,7 @@ impl Parser {
             },
         ));
     }
-    fn parse_fun_call(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+    fn parse_fun_call(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, String> {
         if self.get(0).typ == TknType::Ident
             && !self.is_empty(0)
             && self.get(1).typ == TknType::OPara
@@ -563,7 +554,7 @@ impl Parser {
     fn parse_variable_assignment(
         self: &mut Self,
         expect_semi: &mut bool,
-    ) -> Result<Stmt, SyntaxError> {
+    ) -> Result<Stmt, String> {
         let mut stmt;
         panic_check!(self.parse_arth_op_add(&mut false), stmt);
 
@@ -584,7 +575,7 @@ impl Parser {
         expect_semi_colon!(self, expect_semi);
         return Ok(stmt);
     }
-    fn parse_arth_op_add(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+    fn parse_arth_op_add(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, String> {
         let mut stmt: Stmt;
 
         expect_expr!(self, self.parse_arth_op_mult(&mut false), stmt);
@@ -618,7 +609,7 @@ impl Parser {
 
         return Ok(stmt);
     }
-    fn parse_arth_op_mult(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+    fn parse_arth_op_mult(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, String> {
         let mut stmt: Stmt;
 
         panic_check!(self.parse_boolean_op(&mut false), stmt);
@@ -650,7 +641,7 @@ impl Parser {
         }
         return Ok(stmt);
     }
-    fn parse_boolean_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+    fn parse_boolean_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, String> {
         let mut stmt: Stmt;
         panic_check!(self.parse_dot_op(expect_semi), stmt);
 
@@ -702,7 +693,7 @@ impl Parser {
         return Ok(stmt);
     }
 
-    fn parse_dot_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, SyntaxError> {
+    fn parse_dot_op(self: &mut Self, expect_semi: &mut bool) -> Result<Stmt, String> {
         let mut stmt: Stmt;
         panic_check!(self.parse_grouping(), stmt);
         if (self.get(0).typ == TknType::Dot) {
@@ -744,7 +735,7 @@ impl Parser {
         return Ok(stmt);
     }
 
-    fn parse_grouping(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_grouping(self: &mut Self) -> Result<Stmt, String> {
         if self.get(0).typ == TknType::OPara {
             let mut  stmt: Stmt;
 
@@ -763,7 +754,7 @@ impl Parser {
 
         return self.parse_array_notation();
     }
-    fn parse_array_notation(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_array_notation(self: &mut Self) -> Result<Stmt, String> {
         if self.get(0).typ == TknType::OSqr {
             let mut vals: Vec<Stmt> = vec![];
             let mut val: Stmt;
@@ -791,7 +782,7 @@ impl Parser {
 
         return self.parse_hashtable_notation();
     }
-    fn parse_hashtable_notation(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_hashtable_notation(self: &mut Self) -> Result<Stmt, String> {
         if self.get(0).typ == TknType::OCurl {
             let mut vals: Vec<Vec<Stmt>> = vec![];
             let mut elem: Stmt;
@@ -827,7 +818,7 @@ impl Parser {
 
         return self.parse_literal();
     }
-    fn parse_literal(self: &mut Self) -> Result<Stmt, SyntaxError> {
+    fn parse_literal(self: &mut Self) -> Result<Stmt, String> {
         let tkn: Tkn = self.next();
         let mut props: HashMap<String, StmtValue> = HashMap::new();
 
@@ -868,9 +859,8 @@ impl Parser {
                 HashMap::new(),
             )),
             _ => {
-                return Err(SyntaxError {
-                    msg: format!("{} Unexpected literal {:?} ", tkn.line, tkn.typ),
-                });
+                return Err(format!("{} Unexpected literal {:?} ", tkn.line, tkn.typ),
+                );
             }
         };
     }
