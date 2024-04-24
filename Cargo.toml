@@ -5,4 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "epic"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+
+[[bin]]
+name = "mybin"
+path = "src/lib.rs"
+
 [dependencies]
+wasm-bindgen = "0.2"

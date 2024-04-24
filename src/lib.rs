@@ -1,4 +1,5 @@
 #![allow(warnings)]
+use wasm_bindgen::prelude::*;
 
 mod lexer;
 mod parser;
@@ -6,18 +7,27 @@ mod sym_analyzer;
 mod transpiler;
 mod meta;
 
-use std::fs;
+use std::{ffi::{c_char, CStr, CString}, fs};
 
 use sym_analyzer::*;
 use lexer::*;
 use parser::*;
 use transpiler::*;
 
+#[wasm_bindgen]
+pub fn main() { 
+    compile("let a = 1;".to_string());
+}
 
-fn main() {
-    let src: String = fs::read_to_string("./src/src.op").unwrap();
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s : &str);
+}
 
+#[wasm_bindgen]
+pub fn compile(src : String) -> JsValue {
     let mut lexer: Lexer = Lexer::new();
     lexer.tokenize(&src);
 
@@ -26,7 +36,7 @@ fn main() {
         for lex_err in lexer.errs {
             println!("{}", lex_err.error);
         }
-        return;
+        return JsValue::from("lexer error");
     }
 
 
@@ -38,9 +48,8 @@ fn main() {
         for err in parser.errs {
             println!("{}", err.msg);
         }
-        return;
+        return JsValue::from("parser error");
     }
-    // parser.print_tree(&parser.program, 0);
 
     let mut analyzer: SymenticAnal =  SymenticAnal::new();
     analyzer.analyse(&parser.program);
@@ -50,5 +59,8 @@ fn main() {
 
     let transpiler : Transpiler = Transpiler::new();
     let src = transpiler.js_transpiler(&parser.program, 0,&mut true);
-    println!("{}",src);
+    log("ur mom");
+    log(src.as_str());
+
+    return JsValue::from(src);
 }

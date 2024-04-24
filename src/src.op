@@ -47,23 +47,16 @@ func on_init(ID){}
 
   
   if($.AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x + data.vel_x,pos.y + data.vel_y,size.w,size.h)) {
-        let x_collide = 1;
       if($.AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x,pos.y + data.vel_y,size.w,size.h)) {
             if(data.vel_y > 0) {
               pos.y = player_pos.y - size.h;   
-        } 
+            } 
         if(data.vel_y < 0) {
               pos.y = player_pos.y + player_size.h;   
         }
         data.y_dir =  data.y_dir * -1; 
-        x_collide = 0;
-      }
-
-        
-      if(x_collide) {
-          
-      if($.AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x + data.vel_x,pos.y,size.w,size.h)) {
-              if(data.vel_x > 0) {
+      } elseif($.AABB(player_pos.x,player_pos.y,player_size.w,player_size.h,pos.x + data.vel_x,pos.y,size.w,size.h)) {
+ if(data.vel_x > 0) {
                 pos.x = player_pos.x - size.w;   
           } 
           if(data.vel_x < 0) {
@@ -71,8 +64,6 @@ func on_init(ID){}
           }
           data.x_dir =  data.x_dir * -1; 
       }
-      }
-      
   } 
   
   data.vel_x = (data.x_dir / sqrted) * data.speed;
@@ -81,5 +72,4 @@ func on_init(ID){}
   pos.x = pos.x + data.vel_x;
   pos.y = pos.y + data.vel_y;   
   
-
 }

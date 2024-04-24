@@ -18,8 +18,10 @@ impl Transpiler {
     pub fn fill_js_prebuilds(&mut self) {
         self.js_functions
             .insert("log".to_string(), "console.log".to_string());
-        self.js_functions
-            .insert("get_component".to_string(), "sys__get_component".to_string());
+        self.js_functions.insert(
+            "get_component".to_string(),
+            "sys__get_component".to_string(),
+        );
 
         self.js_functions.insert(
             "get_entity_by_id".to_string(),
@@ -29,8 +31,10 @@ impl Transpiler {
         self.js_functions
             .insert("randint".to_string(), "sys__randint".to_string());
 
-        self.js_functions
-            .insert("clear_entities".to_string(), "sys__clear_entities".to_string());
+        self.js_functions.insert(
+            "clear_entities".to_string(),
+            "sys__clear_entities".to_string(),
+        );
 
         self.js_functions
             .insert("init".to_string(), "sys__init".to_string());
@@ -41,6 +45,7 @@ impl Transpiler {
         self.js_functions
             .insert("AABB".to_string(), "sys__AABB".to_string());
     }
+
     pub fn js_transpiler(&self, node: &Stmt, depth: usize, add_semi: &mut bool) -> String {
         let mut src = "".to_string();
         let spacing: String = "  ".to_string();
@@ -194,7 +199,7 @@ impl Transpiler {
                     let rhs = get_stmt_typ!(&node.props["rhs"]);
                     match rhs.typ {
                         StmType::FuncCall => {
-                            src = self.js_transpiler(rhs, 0, &mut false);
+                            src = self.js_transpiler(rhs, depth, &mut false);
                         }
                         _ => {
                             unreachable!();
