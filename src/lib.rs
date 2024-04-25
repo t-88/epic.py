@@ -1,15 +1,6 @@
 #![allow(warnings)]
 use serde_json::Value;
 use wasm_bindgen::prelude::*;
-
-mod js_transpiler;
-mod lexer;
-mod meta;
-mod parser;
-mod py_transpiler;
-mod sym_analyzer;
-mod transpiler;
-
 use std::{
     collections::HashMap,
     ffi::{c_char, CStr, CString},
@@ -17,24 +8,20 @@ use std::{
     io::{Read, Write},
 };
 
-use js_transpiler::*;
-use lexer::*;
-use parser::*;
-use py_transpiler::*;
-use sym_analyzer::*;
-use transpiler::*;
-
+mod meta;
 static DEBUG_MODE: bool = true;
+mod  op_lang;
+use op_lang::{lexer::Lexer, parser::Parser, sym_analyzer::SymenticAnal, transpiler::Transpiler, *};
 
 // [x] python build
 // [x] make pong work
 // [x] build a full game
-// [] fix js restart, maybe use engine
-// [] fix python stuff
-// [] handle some edje cases
-// [] day off
-// [] docs
-// [] last work
+// [ ] fix js restart, maybe use engine
+// [ ] fix python stuff
+// [ ] handle some edje cases
+// [ ] day off
+// [ ] docs
+// [ ] last work
 
 fn main() {
     build_python();
@@ -174,15 +161,14 @@ engine.background_color = ({},{},{})
 
     // combine code
     let src = format!(r#"
-from engine import *
 import pygame
-import ecs.ecs_component as  ecs_component
-import ecs.ecs_system as  ecs_system
 import esper
-from op_lang.build.lookup_tables import *
-from op_lang.build.functions import *
 import random
 import math
+from build import *
+from engine import *
+import ecs.ecs_component as  ecs_component
+import ecs.ecs_system as  ecs_system
 
 entities = {{}}
     
@@ -211,7 +197,7 @@ engine.init()
 engine.run()
 "#);
 
-    let mut f = File::create("./pygame_engine/game_code.py").unwrap();
+    let mut f = File::create("./py-env/game.py").unwrap();
     f.write(src.as_bytes());
 }
 
