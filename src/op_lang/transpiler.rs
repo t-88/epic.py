@@ -1,5 +1,11 @@
 use std::{collections::HashMap, vec};
 
+
+pub enum TranspileLang {
+    Js,
+    Py
+}
+
 pub struct Transpiler {
     pub js_functions: HashMap<String, String>,
     pub py_functions: HashMap<String, String>,

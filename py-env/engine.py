@@ -1,28 +1,46 @@
 import pygame
-import esper
 
+
+def empty():
+    pass
 class Engine:
     def __init__(self):
         self.is_running = True
         self.display = None
-        self.init_callback = None
-        self.process_callback = None
-        self.background_color = (0,0,0)
         
         self.width = 600
         self.height = 400
-        self.clock = None
+        self.background_color = (0,0,0)
         
-    def init(self):
         pygame.init()
         self.clock = pygame.time.Clock()
-        self.display = pygame.display.set_mode((self.width,self.height))
+        self.frame_entities = {}
+        self.entities = {}
+        self.pre_init = empty
+        self.restart = False
+                
+    def init(self):
+        if self.display == None:
+            self.display = pygame.display.set_mode((self.width,self.height))
+        self.pre_init()
+        self.frame_entities = self.entities.copy()
+        for uuid in self.frame_entities:
+            self.frame_entities[uuid].init(uuid)
         
-        if self.init_callback: self.init_callback()
-    
-        
+            
     def update(self):
-        pass
+        self.frame_entities = self.entities.copy()
+        for uuid in self.frame_entities:
+            self.frame_entities[uuid].update(uuid)
+        
+        if self.restart:
+            self.init()
+            self.restart = False
+            
+    def render(self):
+        for uuid in self.entities:
+            self.entities[uuid].render()
+        
         
     def run(self):
         while self.is_running:
@@ -35,8 +53,7 @@ class Engine:
                         self.is_running = False
         
             self.update()
-            if self.process_callback: self.process_callback()
-
+            self.render()
             pygame.display.flip()     
             self.display.fill(self.background_color)
             
