@@ -6,7 +6,7 @@ use crate::*;
 use crate::parser::*;
 
 
-static REQUIRE_ENGINE_FUNCS : bool = false;
+static REQUIRE_ENGINE_FUNCS : bool = true;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbType {

@@ -14,23 +14,9 @@ mod  op_lang;
 use op_lang::{compile::compile, lexer::Lexer, parser::Parser, sym_analyzer::SymenticAnal, transpiler::{TranspileLang, Transpiler}, *};
 mod pybuild;
 
-static DEBUG_MODE: bool = true;
-
-
-// [x] python build
-// [x] make pong work
-// [x] build a full game
-// [ ] rewrite how game works, remove ecs, make it global in all langs
-// [ ] day off
-// [ ] docs
-// [ ] last work
-
 fn main() {
     build_python();
 }
-
-
-
 // js section
 #[wasm_bindgen]
 extern "C" {
