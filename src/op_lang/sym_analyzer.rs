@@ -353,10 +353,12 @@ impl SymenticAnal {
                 self.analyze(get_stmt_typ!(&node.props["condition"]));
                 self.analyze(get_stmt_typ!(&node.props["body"]));
 
-                let else_ifs = get_stmt_typ!(&node.props["else_ifs"], StmtValue::Arr);
-                for else_if in else_ifs {
-                    self.analyze(get_stmt_typ!(&else_if.props["condition"], StmtValue::Stmt));
-                    self.analyze(get_stmt_typ!(&else_if.props["body"]));
+                if(node.props.contains_key("else_ifs")) {
+                    let else_ifs = get_stmt_typ!(&node.props["else_ifs"], StmtValue::Arr);
+                    for else_if in else_ifs {
+                        self.analyze(get_stmt_typ!(&else_if.props["condition"], StmtValue::Stmt));
+                        self.analyze(get_stmt_typ!(&else_if.props["body"]));
+                    }
                 }
 
                 // else
@@ -525,7 +527,9 @@ impl SymenticAnal {
             }
 
             StmType::Return => {
-                self.analyze(get_stmt_typ!(&node.props["val"]));
+                if(node.props.contains_key("val")) {
+                    self.analyze(get_stmt_typ!(&node.props["val"]));
+                }
             }
             StmType::Arr => {
                 let vals = get_stmt_typ!(&node.props["vals"], StmtValue::Arr);

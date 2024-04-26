@@ -368,7 +368,10 @@ pub fn py_transpiler(&self, node: &Stmt, depth: usize, add_semi: &mut bool, func
         }
 
         StmType::Return => {
-            let val = self.py_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false,func_prefix);
+            let mut val = "".to_string();
+            if(node.props.contains_key("val")) {
+                val = self.py_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false,func_prefix);
+            }
             src = format!("{}return {val}", spacing.repeat(depth));
             if (*add_semi) {
                 src += ";";

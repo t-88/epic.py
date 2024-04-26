@@ -354,7 +354,10 @@ impl Transpiler {
             }
 
             StmType::Return => {
-                let val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false,func_prefix);
+                let mut val = "".to_string();
+                if(node.props.contains_key("val")) {
+                    val = self.js_transpiler(get_stmt_typ!(&node.props["val"]), 0, &mut false,func_prefix);
+                }
                 src = format!("{}return {val}", spacing.repeat(depth));
                 if (*add_semi) {
                     src += ";";
