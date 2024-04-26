@@ -1,1 +1,1 @@
-{"type":"Scene","comps":{"id":"Scene","size":{"w":400,"h":600},"color":{"r":255,"g":255,"b":255}},"children":[{"type":"Rect","comps":{"id":"Rect","pos":{"x":147,"y":225},"size":{"w":50,"h":50},"color":{"r":125,"g":125,"b":125}}}]}
+{"type":"Scene","comps":{"id":"Scene","size":{"w":600,"h":600},"color":{"r":255,"g":255,"b":255}},"children":[{"type":"Rect","comps":{"id":"Rect","pos":{"x":200,"y":479},"size":{"w":50,"h":50},"color":{"r":125,"g":125,"b":125}}}]}

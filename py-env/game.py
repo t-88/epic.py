@@ -17,7 +17,7 @@ def init():
                               None, 
                               x = 0, 
                               y = 0, 
-                              w = 400, 
+                              w = 600, 
                               h = 600,
                               r = 255,
                               g = 255,
@@ -26,8 +26,8 @@ def init():
                               storage = [])
 	sys__create_entity(None,
                               None, 
-                              x = 147, 
-                              y = 225, 
+                              x = 200, 
+                              y = 479, 
                               w = 50, 
                               h = 50,
                               r = 125,
@@ -39,13 +39,11 @@ def init():
 
     
 
-engine.width = 400
+engine.width = 600
 engine.height = 600
 engine.background_color = (255,255,255)
 
 
-engine.width = 400
-engine.height = 600
 engine.pre_init = init
 engine.init()
 engine.run()

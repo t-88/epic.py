@@ -170,8 +170,6 @@ def init():
     
 {app_configs}
 
-engine.width = 400
-engine.height = 600
 engine.pre_init = init
 engine.init()
 engine.run()
