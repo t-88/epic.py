@@ -59,24 +59,36 @@ fn py_transpile_entity(
         storage_src += "]";
         store = storage_src;
     }
+    
+    let mut  script = "";
+    let mut transpiled_script = "None".to_string();
+    let mut on_init = "None".to_string();
+    let mut on_update = "None".to_string();
 
-    let script = comps["script"].as_str().unwrap();
-    let (status, content) = compile(
-        TranspileLang::Py,
-        script.to_string(),
-        format!("{func_prefix}").as_str(),
-    );
+    if comps.contains_key("script") {
+        script = comps["script"].as_str().unwrap();
+        let (status, content) = compile(
+            TranspileLang::Py,
+            script.to_string(),
+            format!("{func_prefix}").as_str(),
+        );
 
-    if (status != 0) {
-        println!("transpiler expects the code to be transpilable, its not!");
-        assert!(status == 0);
+        if (status != 0) {
+            println!("transpiler expects the code to be transpilable, its not!");
+            assert!(status == 0);
+        }
+        transpiled_script = content[0].clone();
+        funcs += transpiled_script.as_str();
+
+        on_init = format!("{func_prefix}on_init");
+        on_update = format!("{func_prefix}on_update"); 
+
     }
 
-    let transpiled_script = content[0].clone();
-    funcs += transpiled_script.as_str();
+
     src = format!(
-        "{}sys__create_entity({func_prefix}on_init,
-                              {func_prefix}on_update, 
+        "{}sys__create_entity({on_init},
+                              {on_update}, 
                               x = {x}, 
                               y = {y}, 
                               w = {w}, 
