@@ -17,6 +17,11 @@ pub enum SymbType {
     Array,
 }
 
+
+// [ ] rurst build, window, linux
+// [ ] responsive website
+// [ ] create docs
+
 #[derive(Debug, Clone)]
 struct SymbData {
     pub name: String,

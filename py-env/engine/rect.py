@@ -1,6 +1,6 @@
 
-from engine import engine
-from dotdict import *
+from engine.engine import * 
+from engine.dotdict import *
 import uuid
 import pygame
 

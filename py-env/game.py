@@ -1,6 +1,6 @@
 
-from engine import engine
-from meta import *        
+from engine.engine import engine
+from engine.meta import *        
 import random
 import math
 
@@ -101,8 +101,10 @@ def _1_on_update(ID):
 
     if(pos.y > scene_size.h - size.h):
         data.y_dir = 0;
+        data.x_dir = 0;
         sys__clear_entities()
         sys__init()
+        return ;
 
     player_id = sys__get_entity_by_id("player");
     player_pos = sys__get_component(player_id,Components.Position);
@@ -146,9 +148,9 @@ def init():
                               y = 0, 
                               w = 400, 
                               h = 600,
-                              r = 255,
-                              g = 255,
-                              b = 255,
+                              r = 0,
+                              g = 0,
+                              b = 0,
                               id='Main-Scene',
                               storage = [])
 	sys__create_entity(_0_on_init,
@@ -164,8 +166,8 @@ def init():
                               storage = [{ 'key' : 'speed' , 'val' : '5'  },])
 	sys__create_entity(_1_on_init,
                               _1_on_update, 
-                              x = 191, 
-                              y = 327, 
+                              x = 201, 
+                              y = 432, 
                               w = 20, 
                               h = 20,
                               r = 100,
@@ -179,7 +181,7 @@ def init():
 
 engine.width = 400
 engine.height = 600
-engine.background_color = (255,255,255)
+engine.background_color = (0,0,0)
 
 
 engine.width = 400

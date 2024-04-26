@@ -90,7 +90,7 @@ fn py_transpile_entity(
 }
 
 pub fn build_python() {
-    let mut file = File::open("src/src.json").unwrap();
+    let mut file = File::open("src.json").unwrap();
     let mut data = String::new();
     file.read_to_string(&mut data).unwrap();
     let json: Value = serde_json::from_str(&data).unwrap();
@@ -139,8 +139,8 @@ engine.background_color = ({},{},{})
     // combine code
     let src = format!(
         r#"
-from engine import engine
-from meta import *        
+from engine.engine import engine
+from engine.meta import *        
 import random
 import math
 

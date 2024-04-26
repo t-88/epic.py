@@ -1,8 +1,7 @@
 import pygame
-from rect import Rect
-from engine import engine
-from dotdict import *
-
+from engine.rect import Rect
+from engine.engine import engine
+from engine.dotdict import *
 
 
 Components = DotDict()
