@@ -34,6 +34,7 @@ class Engine:
             self.frame_entities[uuid].update(uuid)
         
         if self.restart:
+            engine.entities.clear()
             self.init()
             self.restart = False
             

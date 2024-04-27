@@ -17,8 +17,7 @@ impl Transpiler {
         self.same_name_meta(&mut py_functions, "get_component");
         self.same_name_meta(&mut py_functions, "get_entity_by_id");
         self.same_name_meta(&mut py_functions, "clear_entities");
-        self.same_name_meta(&mut py_functions, "clear_entities");
-        self.same_name_meta(&mut py_functions, "init");
+        self.same_name_meta(&mut py_functions, "restart");
         self.same_name_meta(&mut py_functions, "AABB");
         self.same_name_meta(&mut py_functions, "is_pressed");
         self.same_name_meta(&mut py_functions, "remove_entity");

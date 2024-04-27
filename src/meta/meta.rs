@@ -65,7 +65,7 @@ impl Meta {
         meta.add_func("get_entity_by_id", 1, vec![]);
         meta.add_func("randint", 2, vec![]);
         meta.add_func("clear_entities", 0, vec![]);
-        meta.add_func("init", 0, vec![]);
+        meta.add_func("restart", 0, vec![]);
         meta.add_func("sqrt", 1, vec![]);
         meta.add_func("AABB", 8, vec![]);
         meta.add_func("is_pressed", 1, vec![]);

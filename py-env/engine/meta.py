@@ -42,7 +42,7 @@ def sys__AABB(x1,y1,w1,h1,x2,y2,w2,h2):
 
 def sys__clear_entities():
     engine.entities.clear()
-def sys__init():
+def sys__restart():
     engine.restart = True
     
     
